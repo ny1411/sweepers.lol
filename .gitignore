@@ -30,11 +30,24 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (keep secrets private)
+.env
+.env*.local
+.env.production
+.env.development
 .env*
+!.env.example
 
-# vercel
+# database & supabase (handled directly on supabase cloud)
+supabase/
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# vercel & agent scratch
 .vercel
+.gemini/
 
 # typescript
 *.tsbuildinfo

@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💣 Sweeper.lol
 
-## Getting Started
+> **Minesweeper meets high-stakes corporate bidding.** Secure the bag or get cooked, lol.
 
-First, run the development server:
+Sweeper.lol turns classic Minesweeper into a competitive multiplayer arena where companies & players bid to claim territory on the grid. Land on the high-value cells, trigger special locks, and flex on the global leaderboard.
 
+---
+
+## ⚡ The Lore & Mechanics (TL;DR)
+
+- **The Grid:** 10x10 arena of claimable cells with Minesweeper adjacency mechanics.
+- **Numbers = Bag Value:** Adjacent cells show clue numbers (`1`, `2`, `3`) indicating surrounding density. Higher numbers = higher base value, fr.
+- **👑 SPECIAL Cells:** Glowing gold cells that trigger a **7-day lock period**. Once claimed, nobody can outbid you till the timer expires. Massive flex, imo.
+- **Real-Time Outbid Alerts:** Live toasts scream at you when another company tries to snatch your bag, lmao.
+- **Sound FX Engine:** Built-in Web Audio synthesizers for clicks, reveals, bids, and game overs (toggleable mute, btw).
+- **Live Leaderboard & Company Analytics:** Track top corporate spenders, board domination %, and recent bid wars in real-time.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework:** [Next.js](https://nextjs.org/) (App Router, React 19)
+- **Styling:** Tailwind CSS + Lucide Icons (custom dark/cyber aesthetic)
+- **Database & Auth:** [Supabase](https://supabase.com/) (SSR client + Realtime)
+- **Sound:** Native Web Audio API procedural sound synthesis
+- **State Management:** React Context + optimistic client-side fallbacks
+
+---
+
+## 🚀 Quickstart
+
+### 1. Clone & Install
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/sweeper.lol.git
+cd sweeper.lol
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure Environment Variables
+Copy `.env.example` into `.env.local`:
+```bash
+cp .env.example .env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Fill in your Supabase credentials in `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+NEXT_PUBLIC_DEFAULT_BOARD_ID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+NEXT_PUBLIC_DEFAULT_MIN_BID_INCREMENT=1.00
+NEXT_PUBLIC_SPECIAL_LOCK_HOURS=168
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*(Note: If no Supabase backend is plugged in, the game runs automatically in mock/demo mode out of the box with zero setup needed, so you can test instantly, lol).*
 
-## Learn More
+### 3. Spin it Up
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) and start claiming your tiles.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📁 Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+├── src/
+│   ├── app/                 # Next.js app router pages & layouts
+│   ├── components/
+│   │   ├── admin/           # Board reset & debug tools
+│   │   ├── auth/            # Auth modal & company profile login
+│   │   ├── bidding/         # Bid modal, live outbid toasts, history
+│   │   ├── board/           # Interactive grid, HUD, cell rendering
+│   │   ├── dashboard/       # Corporate metrics & board analytics
+│   │   ├── layout/          # Navbar & Footer
+│   │   └── leaderboard/     # Top companies ranking table
+│   ├── context/             # Auth & user session state
+│   ├── lib/
+│   │   ├── game/            # Minesweeper adjacency engine & generators
+│   │   ├── sound.ts         # Web Audio procedural SFX generator
+│   │   ├── supabase/        # SSR browser & server client factories
+│   │   └── config.ts        # Game constants & formatting utilities
+│   └── types/               # TypeScript definitions
+└── public/                  # Static assets
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📜 License
+MIT — Go secure your bag, fr! 🚀
