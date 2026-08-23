@@ -26,16 +26,42 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
     if (!muted) sounds.playClick();
   };
 
-  const getSmiley = () => {
+  const renderSmileySvg = () => {
     switch (statusMood) {
       case 'excited':
-        return '😮';
+        return (
+          <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
+            <circle cx="8.5" cy="9" r="1.5" fill="#1E293B" />
+            <circle cx="15.5" cy="9" r="1.5" fill="#1E293B" />
+            <ellipse cx="12" cy="15.5" rx="2.5" ry="3.5" fill="#1E293B" />
+          </svg>
+        );
       case 'won':
-        return '😎';
+        return (
+          <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
+            <path d="M4.5 10h15M5 9h6v3a3 3 0 01-6 0V9zm8 0h6v3a3 3 0 01-6 0V9z" fill="#0F172A" stroke="#0F172A" strokeWidth="1" />
+            <path d="M8 16.5c1.5 1.5 6.5 1.5 8 0" stroke="#713F12" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        );
       case 'outbid':
-        return '😵';
+        return (
+          <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
+            <path d="M7 8l3 3m0-3l-3 3M14 8l3 3m0-3l-3 3" stroke="#0F172A" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M8.5 16.5c1.5-1.5 5.5-1.5 7 0" stroke="#713F12" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        );
       default:
-        return '🙂';
+        return (
+          <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
+            <circle cx="8.5" cy="9.5" r="1.5" fill="#1E293B" />
+            <circle cx="15.5" cy="9.5" r="1.5" fill="#1E293B" />
+            <path d="M8 14.5c1.2 2 6.8 2 8 0" stroke="#713F12" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        );
     }
   };
 
@@ -69,10 +95,10 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
             sounds.playClick();
             if (onResetDiscovery) onResetDiscovery();
           }}
-          className="ms-tile-raised w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-xl sm:text-2xl cursor-pointer active:ms-tile-pressed transition-transform hover:scale-105"
+          className="ms-tile-raised w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center cursor-pointer active:ms-tile-pressed transition-transform hover:scale-105"
           title="Reset Fog of War / Covered State"
         >
-          <span>{getSmiley()}</span>
+          {renderSmileySvg()}
         </button>
       </div>
 

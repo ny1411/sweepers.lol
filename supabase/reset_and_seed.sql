@@ -363,8 +363,8 @@ CREATE OR REPLACE FUNCTION public.reveal_cells(
 RETURNS TABLE (
     id UUID,
     board_id UUID,
-    row INT,
-    col INT,
+    "row" INT,
+    "col" INT,
     position_type TEXT,
     base_value NUMERIC,
     is_special BOOLEAN,

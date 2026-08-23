@@ -1,21 +1,16 @@
 import DodoPayments from 'dodopayments';
 import { UnwrapWebhookEvent } from 'dodopayments/resources/webhooks/webhooks';
 
-let dodoClientInstance: DodoPayments | null = null;
-
 export function getDodoClient(): DodoPayments {
-  if (!dodoClientInstance) {
-    const apiKey = process.env.DODO_PAYMENTS_API_KEY || '';
-    const webhookKey = process.env.DODO_PAYMENTS_WEBHOOK_KEY || '';
-    const environment = (process.env.DODO_PAYMENTS_ENVIRONMENT as 'test_mode' | 'live_mode') || 'test_mode';
+  const apiKey = process.env.DODO_PAYMENTS_API_KEY || '';
+  const webhookKey = process.env.DODO_PAYMENTS_WEBHOOK_KEY || '';
+  const environment = (process.env.DODO_PAYMENTS_ENVIRONMENT as 'test_mode' | 'live_mode') || 'test_mode';
 
-    dodoClientInstance = new DodoPayments({
-      bearerToken: apiKey,
-      webhookKey: webhookKey || undefined,
-      environment,
-    });
-  }
-  return dodoClientInstance;
+  return new DodoPayments({
+    bearerToken: apiKey,
+    webhookKey: webhookKey || undefined,
+    environment,
+  });
 }
 
 export function isDodoConfigured(): boolean {
@@ -97,8 +92,20 @@ export async function createBidCheckoutSession(
       sessionId: session.session_id,
     };
   } catch (error: unknown) {
-    // If the error is due to missing product ID or invalid test mode configuration, throw informative error
     console.error('Dodo Payments Checkout Creation Error:', error);
+    if (error && typeof error === 'object' && 'status' in error) {
+      const errObj = error as { status?: number; error?: { code?: string; message?: string; error?: string }; message?: string };
+      if (errObj.status === 401) {
+        throw new Error(
+          'Dodo Payments 401 Unauthorized: The API key is invalid for this environment. If DODO_PAYMENTS_ENVIRONMENT is "test_mode", please use the Test Mode API key from the Dodo Payments dashboard (test mode toggle).'
+        );
+      }
+      if (errObj.status === 403 && errObj.error?.code === 'MERCHANT_NOT_LIVE') {
+        throw new Error(
+          'Dodo Payments 403: Live payments are not yet enabled for your merchant account. Please set DODO_PAYMENTS_ENVIRONMENT=test_mode and use your Test Mode API key.'
+        );
+      }
+    }
     const message = error instanceof Error ? error.message : 'Unknown payment gateway error';
     throw new Error(`Dodo Payments error: ${message}`);
   }

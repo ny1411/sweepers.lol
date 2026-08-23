@@ -6,13 +6,11 @@ import { BoardGrid } from '@/components/board/BoardGrid';
 import { TopCompaniesDashboard } from '@/components/dashboard/TopCompaniesDashboard';
 import { BidModal } from '@/components/bidding/BidModal';
 import { LiveOutbidToast } from '@/components/bidding/LiveOutbidToast';
+import { StatsModal } from '@/components/layout/StatsModal';
 import { BoardCell, GameStats } from '@/types/game';
 import { gameEngine } from '@/lib/game/engine';
+import { createClient } from '@/lib/supabase/client';
 import {
-  Sparkles,
-  Crown,
-  Compass,
-  Flame,
   Volume2,
   VolumeX,
   CheckCircle2,
@@ -95,6 +93,11 @@ export default function HomePage() {
     amount?: string;
   } | null>(null);
 
+  // 100% Real Live Supabase Realtime Presence & Database Visitors
+  const [onlineCount, setOnlineCount] = useState<number>(1);
+  const [visitorCount, setVisitorCount] = useState<number>(1);
+  const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
+
   useEffect(() => {
     // Initial stats load and Supabase sync
     gameEngine.loadAllFromSupabase().then(() => {
@@ -108,6 +111,67 @@ export default function HomePage() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Real Supabase Presence Channel & Visitors Tracking
+  useEffect(() => {
+    let sessionId = '';
+    try {
+      sessionId = localStorage.getItem('sweeper_session_id') || '';
+      if (!sessionId) {
+        sessionId = `user_${Math.random().toString(36).substring(2, 11)}`;
+        localStorage.setItem('sweeper_session_id', sessionId);
+      }
+    } catch {
+      sessionId = `user_${Math.random().toString(36).substring(2, 11)}`;
+    }
+
+    // 1. Subscribe to real-time presence channel
+    const supabase = createClient();
+    const presenceChannel = supabase.channel('sweeper_online_presence', {
+      config: {
+        presence: {
+          key: sessionId,
+        },
+      },
+    });
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const activeUsersCount = Object.keys(state).length;
+        setOnlineCount(Math.max(1, activeUsersCount));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    // 2. Fetch verified real visitor count
+    const fetchVisitors = async (isInitial = false) => {
+      try {
+        const res = await fetch(`/api/stats?track=${isInitial ? '1' : '0'}&sessionId=${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.visitors === 'number') {
+            setVisitorCount(data.visitors);
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    };
+
+    fetchVisitors(true);
+    const interval = setInterval(() => fetchVisitors(false), 20000);
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(presenceChannel);
+    };
   }, []);
 
   const handleSelectCell = (cell: BoardCell) => {
@@ -152,24 +216,26 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Quick Stats Pill & Sound Toggle */}
+          {/* Live Vercel Analytics Stats Text & Sound Toggle */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {stats && (
-              <div className="hidden sm:flex items-center gap-3 bg-neutral-900/90 border border-neutral-800 px-3 py-1.5 rounded-full text-xs font-mono">
-                <div className="flex items-center gap-1 text-emerald-400">
-                  <Flame className="w-3.5 h-3.5" />
-                  <span>{stats.claimedCells}/100 Claimed</span>
-                </div>
-                <div className="h-3 w-px bg-neutral-800" />
-                <div className="text-amber-400 font-bold">
-                  Top Bid: ${stats.highestBid}
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-mono text-neutral-300 bg-neutral-900/90 border border-neutral-800 px-3 py-1.5 rounded-full shadow-inner">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span>{onlineCount} online</span>
+              <span className="text-neutral-600">·</span>
+              <span className="hidden xs:inline">{visitorCount.toLocaleString()} visitors since launch</span>
+              <span className="xs:hidden">{visitorCount.toLocaleString()} visits</span>
+              <span className="text-neutral-600">·</span>
+              <button
+                onClick={() => setShowStatsModal(true)}
+                className="text-amber-400 hover:text-amber-300 hover:underline font-semibold cursor-pointer"
+              >
+                see stats
+              </button>
+            </div>
 
             <button
               onClick={toggleSound}
-              className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer shrink-0"
               title={isSoundMuted ? 'Unmute Game Sounds' : 'Mute Game Sounds'}
             >
               {isSoundMuted ? (
@@ -225,65 +291,13 @@ export default function HomePage() {
           selectedCell={selectedCell}
           onStatsUpdate={setStats}
         />
-
-        {/* 3. DYNAMIC VALUE LEGEND & RULES GUIDE */}
-        <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-xl">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-              <Compass className="w-4 h-4 text-amber-400" />
-              <span>Dynamic Territory Pricing & Adjacency Rules</span>
-            </h4>
-            <span className="text-[10px] text-neutral-500 font-mono hidden sm:inline">
-              Minesweeper Adjacency Logic
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-            {/* $1: 0 Neighbors */}
-            <div className="bg-neutral-800/40 p-2.5 rounded-xl border border-neutral-800 flex items-center gap-2.5">
-              <span className="pixel-num-1 text-2xl font-bold">$1</span>
-              <div>
-                <span className="font-bold text-white block">Isolated</span>
-                <span className="text-[10px] text-neutral-400">0 company neighbors</span>
-              </div>
-            </div>
-
-            {/* $3: 1 Neighbor */}
-            <div className="bg-neutral-800/40 p-2.5 rounded-xl border border-neutral-800 flex items-center gap-2.5">
-              <span className="pixel-num-2 text-2xl font-bold">$3</span>
-              <div>
-                <span className="font-bold text-white block">Border Hotzone</span>
-                <span className="text-[10px] text-neutral-400">1 company neighbor</span>
-              </div>
-            </div>
-
-            {/* $5: 2+ Neighbors */}
-            <div className="bg-neutral-800/40 p-2.5 rounded-xl border border-neutral-800 flex items-center gap-2.5">
-              <span className="pixel-num-3 text-2xl font-bold">$5</span>
-              <div>
-                <span className="font-bold text-white block">Cluster Apex</span>
-                <span className="text-[10px] text-neutral-400">2+ company neighbors</span>
-              </div>
-            </div>
-
-            {/* $99: Special Position */}
-            <div className="bg-amber-950/20 p-2.5 rounded-xl border border-amber-500/30 flex items-center gap-2.5">
-              <Crown className="w-6 h-6 text-amber-400 shrink-0" />
-              <div>
-                <span className="font-bold text-amber-300 block">$99 Special</span>
-                <span className="text-[10px] text-amber-400/80">7-Day Lock Protection</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
 
-      {/* Direct Bidding Modal (Opens on any block click, asking for Bid Amount + Name, Website URL, Description) */}
+      {/* Direct Bidding Modal */}
       <BidModal
         cell={selectedCell}
         onClose={() => setSelectedCell(null)}
         onBidSuccess={() => {
-          // Refresh selected cell state
           if (selectedCell) {
             const updated = gameEngine
               .getBoardCells('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'guest-user')
@@ -298,6 +312,14 @@ export default function HomePage() {
         onSelectPosition={(cell) => {
           setSelectedCell(cell);
         }}
+      />
+
+      {/* Live Vercel Analytics Stats Modal */}
+      <StatsModal
+        isOpen={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        onlineCount={onlineCount}
+        visitorCount={visitorCount}
       />
 
       {/* Footer */}
