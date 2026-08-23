@@ -13,66 +13,10 @@ import {
 import { GAME_CONFIG } from '@/lib/config';
 import { createClient, isRealSupabaseConfigured } from '@/lib/supabase/client';
 
-// Initial Demo Companies
-export const DEFAULT_COMPANIES: Company[] = [
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    name: 'Apple',
-    slug: 'apple',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
-    website: 'https://apple.com',
-    description: 'Cupertino tech giant claiming premium territory.',
-    brand_color: '#111827',
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    name: 'Google',
-    slug: 'google',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-    website: 'https://google.com',
-    description: 'Search & AI powerhouse expanding market presence.',
-    brand_color: '#4285F4',
-  },
-  {
-    id: '33333333-3333-3333-3333-333333333333',
-    name: 'Microsoft',
-    slug: 'microsoft',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg',
-    website: 'https://microsoft.com',
-    description: 'Software and enterprise cloud leader.',
-    brand_color: '#00A4EF',
-  },
-  {
-    id: '44444444-4444-4444-4444-444444444444',
-    name: 'NVIDIA',
-    slug: 'nvidia',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg',
-    website: 'https://nvidia.com',
-    description: 'Accelerated computing & AI chips.',
-    brand_color: '#76B900',
-  },
-  {
-    id: '55555555-5555-5555-5555-555555555555',
-    name: 'Tesla',
-    slug: 'tesla',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg',
-    website: 'https://tesla.com',
-    description: 'Electric vehicles and clean energy.',
-    brand_color: '#E82127',
-  },
-  {
-    id: '66666666-6666-6666-6666-666666666666',
-    name: 'Sweeper Labs',
-    slug: 'sweeper-labs',
-    logo_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=SweeperLabs',
-    website: 'https://sweeper.lol',
-    description: 'The pioneer guild of grid auction strategists.',
-    brand_color: '#8B5CF6',
-  },
-];
+export const DEFAULT_BOARD_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 export const DEFAULT_BOARD: Board = {
-  id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  id: DEFAULT_BOARD_ID,
   name: 'Main Arena 10x10',
   slug: 'main-arena',
   rows: 10,
@@ -86,19 +30,35 @@ export const DEFAULT_BOARD: Board = {
   is_active: true,
 };
 
-// Generate standard 10x10 positions
+// Generate standard 10x10 positions helper
 export function generateInitialPositions(boardId: string, rows = 10, cols = 10): Position[] {
   const positions: Position[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const isSpecial = r === 1 && c === 2; // Match reference image ($100 coin at (1,2))
+      const isSpecial = r === 1 && c === 2; // Position #13 ($99 Coin at (1,2))
+      let pType: PositionType = '1';
+      let baseVal = 1.0;
+      if (isSpecial) {
+        pType = 'SPECIAL';
+        baseVal = 99.0;
+      } else if ((r + c) % 3 === 0) {
+        pType = '1';
+        baseVal = 1.0;
+      } else if ((r + c) % 3 === 1) {
+        pType = '2';
+        baseVal = 3.0;
+      } else {
+        pType = '3';
+        baseVal = 5.0;
+      }
+
       positions.push({
         id: `pos-${boardId}-${r}-${c}`,
         board_id: boardId,
         row: r,
         col: c,
-        position_type: isSpecial ? 'SPECIAL' : '1',
-        base_value: isSpecial ? 99.0 : 1.0,
+        position_type: pType,
+        base_value: baseVal,
         is_special: isSpecial,
       });
     }
@@ -106,173 +66,211 @@ export function generateInitialPositions(boardId: string, rows = 10, cols = 10):
   return positions;
 }
 
-// Generate Initial Sample Claims & Bids (Apple, Google, Nvidia)
-function generateInitialClaimsAndBids(positions: Position[], companies: Company[]) {
-  const bids: Bid[] = [];
-  const claims: PositionClaim[] = [];
-  const now = new Date();
-
-  const apple = companies.find((c) => c.slug === 'apple')!;
-  const google = companies.find((c) => c.slug === 'google')!;
-  const msft = companies.find((c) => c.slug === 'microsoft')!;
-
-  // 1. Apple on Row 2, Col 0 (Position #20)
-  const posApple = positions.find((p) => p.row === 2 && p.col === 0);
-  if (posApple) {
-    const bidApple: Bid = {
-      id: `bid-seed-apple-1`,
-      position_id: posApple.id,
-      company_id: apple.id,
-      amount: 4.0,
-      previous_bid: null,
-      created_at: new Date(now.getTime() - 1000 * 60 * 60 * 2).toISOString(),
-      company: apple,
-    };
-    bids.push(bidApple);
-    claims.push({
-      id: `claim-${posApple.id}`,
-      position_id: posApple.id,
-      company_id: apple.id,
-      winning_bid_id: bidApple.id,
-      current_bid: 4.0,
-      claimed_at: bidApple.created_at,
-      company: apple,
-    });
-  }
-
-  // 2. Google on Row 3, Col 2 (Position #32) - was Microsoft for $5, outbid by Google for $8
-  const posGoogle = positions.find((p) => p.row === 3 && p.col === 2);
-  if (posGoogle) {
-    const bidMsft: Bid = {
-      id: `bid-seed-msft-1`,
-      position_id: posGoogle.id,
-      company_id: msft.id,
-      amount: 5.0,
-      previous_bid: null,
-      created_at: new Date(now.getTime() - 1000 * 60 * 90).toISOString(),
-      company: msft,
-    };
-    const bidGoogle: Bid = {
-      id: `bid-seed-google-1`,
-      position_id: posGoogle.id,
-      company_id: google.id,
-      amount: 8.0,
-      previous_bid: 5.0,
-      created_at: new Date(now.getTime() - 1000 * 60 * 30).toISOString(),
-      company: google,
-    };
-    bids.push(bidMsft, bidGoogle);
-    claims.push({
-      id: `claim-${posGoogle.id}`,
-      position_id: posGoogle.id,
-      company_id: google.id,
-      winning_bid_id: bidGoogle.id,
-      current_bid: 8.0,
-      claimed_at: bidGoogle.created_at,
-      company: google,
-    });
-  }
-
-  return { bids, claims };
-}
-
 class GameEngineService {
-  private companies: Company[] = DEFAULT_COMPANIES;
+  private supabase = createClient();
+  private companies: Company[] = [];
   private boards: Board[] = [DEFAULT_BOARD];
-  private positions: Position[] = generateInitialPositions(DEFAULT_BOARD.id);
+  private positions: Position[] = [];
   private bids: Bid[] = [];
   private claims: PositionClaim[] = [];
   private discoveries: Record<string, Set<string>> = {}; // user_id -> Set of position_ids
   private notifications: GameNotification[] = [];
-  private broadcastChannel: BroadcastChannel | null = null;
   private listeners: Set<(event: { type: string; payload?: unknown }) => void> = new Set();
+  private isInitialized = false;
+  private realtimeChannel: ReturnType<typeof this.supabase.channel> | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.initBroadcastChannel();
-      this.loadFromStorage();
+      this.init();
     }
   }
 
-  private initBroadcastChannel() {
+  public async init() {
+    if (this.isInitialized) return;
+    this.isInitialized = true;
+
     try {
-      this.broadcastChannel = new BroadcastChannel('sweeper_game_channel');
-      this.broadcastChannel.onmessage = (event) => {
-        if (event.data?.type === 'SYNC_STATE') {
-          this.loadFromStorage();
-          this.notifyListeners('SYNC_STATE');
-        } else if (event.data?.type === 'OUTBID_ALERT') {
-          this.notifyListeners('OUTBID_ALERT', event.data.payload);
-        }
-      };
-    } catch {
-      // BroadcastChannel not available
+      await this.loadAllFromSupabase();
+      this.setupRealtimeSubscription();
+    } catch (err) {
+      console.error('Failed to initialize Supabase game state:', err);
     }
   }
 
-  private saveToStorage() {
-    if (typeof window === 'undefined') return;
+  // Subscribe to live Postgres changes across all game tables
+  private setupRealtimeSubscription() {
+    if (typeof window === 'undefined' || this.realtimeChannel) return;
+
     try {
-      localStorage.setItem('sweeper_companies', JSON.stringify(this.companies));
-      localStorage.setItem('sweeper_boards', JSON.stringify(this.boards));
-      localStorage.setItem('sweeper_positions', JSON.stringify(this.positions));
-      localStorage.setItem('sweeper_bids', JSON.stringify(this.bids));
-      localStorage.setItem('sweeper_claims', JSON.stringify(this.claims));
-      localStorage.setItem('sweeper_notifications', JSON.stringify(this.notifications));
-
-      const discoveriesObj: Record<string, string[]> = {};
-      for (const [uid, set] of Object.entries(this.discoveries)) {
-        discoveriesObj[uid] = Array.from(set);
-      }
-      localStorage.setItem('sweeper_discoveries', JSON.stringify(discoveriesObj));
-
-      if (this.broadcastChannel) {
-        this.broadcastChannel.postMessage({ type: 'SYNC_STATE' });
-      }
-    } catch {
-      // Storage error
+      this.realtimeChannel = this.supabase
+        .channel('sweeper-live-game')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'position_claims' },
+          async () => {
+            await this.refreshClaims();
+            this.notifyListeners('BID_PLACED');
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bids' },
+          async () => {
+            await this.refreshBids();
+            this.notifyListeners('SYNC_STATE');
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'companies' },
+          async () => {
+            await this.refreshCompanies();
+            this.notifyListeners('COMPANIES_UPDATED');
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications' },
+          async () => {
+            await this.refreshNotifications();
+            this.notifyListeners('NOTIFICATIONS_UPDATED');
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[Supabase Realtime] Connected to live game channel');
+          }
+        });
+    } catch (err) {
+      console.warn('[Supabase Realtime] Could not initialize realtime channel:', err);
     }
   }
 
-  private loadFromStorage() {
-    if (typeof window === 'undefined') return;
+  public async loadAllFromSupabase() {
+    await Promise.all([
+      this.refreshCompanies(),
+      this.refreshBoardAndPositions(),
+      this.refreshClaims(),
+      this.refreshBids(),
+      this.refreshNotifications(),
+    ]);
+    this.notifyListeners('SYNC_STATE');
+  }
+
+  public async refreshCompanies(): Promise<Company[]> {
     try {
-      const storedCompanies = localStorage.getItem('sweeper_companies');
-      if (storedCompanies) this.companies = JSON.parse(storedCompanies);
+      const { data, error } = await this.supabase
+        .from('companies')
+        .select('*')
+        .order('name', { ascending: true });
 
-      const storedBoards = localStorage.getItem('sweeper_boards');
-      if (storedBoards) this.boards = JSON.parse(storedBoards);
-
-      const storedPositions = localStorage.getItem('sweeper_positions');
-      if (storedPositions) this.positions = JSON.parse(storedPositions);
-      else {
-        this.positions = generateInitialPositions(DEFAULT_BOARD.id);
-        const { bids, claims } = generateInitialClaimsAndBids(this.positions, this.companies);
-        this.bids = bids;
-        this.claims = claims;
-        this.saveToStorage();
+      if (error) throw error;
+      if (data) {
+        this.companies = data as Company[];
       }
-
-      const storedBids = localStorage.getItem('sweeper_bids');
-      if (storedBids) this.bids = JSON.parse(storedBids);
-
-      const storedClaims = localStorage.getItem('sweeper_claims');
-      if (storedClaims) this.claims = JSON.parse(storedClaims);
-
-      const storedNotifications = localStorage.getItem('sweeper_notifications');
-      if (storedNotifications) this.notifications = JSON.parse(storedNotifications);
-
-      const storedDiscoveries = localStorage.getItem('sweeper_discoveries');
-      if (storedDiscoveries) {
-        const parsed: Record<string, string[]> = JSON.parse(storedDiscoveries);
-        this.discoveries = {};
-        for (const [uid, arr] of Object.entries(parsed)) {
-          this.discoveries[uid] = new Set(arr);
-        }
-      }
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.error('Error fetching companies from Supabase:', err);
     }
+    return this.companies;
+  }
+
+  public async refreshBoardAndPositions() {
+    try {
+      // 1. Fetch Board
+      const { data: boardData } = await this.supabase
+        .from('boards')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (boardData) {
+        this.boards = [boardData as Board];
+      }
+
+      const activeBoardId = this.boards[0]?.id || DEFAULT_BOARD_ID;
+
+      // 2. Fetch Positions
+      const { data: posData, error } = await this.supabase
+        .from('positions')
+        .select('*')
+        .eq('board_id', activeBoardId)
+        .order('row', { ascending: true })
+        .order('col', { ascending: true });
+
+      if (error) throw error;
+
+      if (posData && posData.length > 0) {
+        this.positions = posData as Position[];
+      } else {
+        // Fallback positions matching 10x10 if database is not yet seeded
+        this.positions = generateInitialPositions(activeBoardId);
+      }
+    } catch (err) {
+      console.error('Error fetching board positions from Supabase:', err);
+      if (this.positions.length === 0) {
+        this.positions = generateInitialPositions(DEFAULT_BOARD_ID);
+      }
+    }
+  }
+
+  public async refreshClaims(): Promise<PositionClaim[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('position_claims')
+        .select('*, company:companies(*)');
+
+      if (error) throw error;
+      if (data) {
+        this.claims = data.map((item) => ({
+          ...item,
+          company: (item.company as unknown as Company) || this.companies.find((c) => c.id === item.company_id),
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching claims from Supabase:', err);
+    }
+    return this.claims;
+  }
+
+  public async refreshBids(): Promise<Bid[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('bids')
+        .select('*, company:companies(*)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      if (data) {
+        this.bids = data.map((item) => ({
+          ...item,
+          company: (item.company as unknown as Company) || this.companies.find((c) => c.id === item.company_id),
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching bids from Supabase:', err);
+    }
+    return this.bids;
+  }
+
+  public async refreshNotifications(): Promise<GameNotification[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      if (data) {
+        this.notifications = data as GameNotification[];
+      }
+    } catch (err) {
+      console.error('Error fetching notifications from Supabase:', err);
+    }
+    return this.notifications;
   }
 
   public subscribe(callback: (event: { type: string; payload?: unknown }) => void) {
@@ -300,28 +298,51 @@ class GameEngineService {
     return this.companies.find((c) => c.id === id);
   }
 
-  public addCompany(company: Omit<Company, 'id'>): Company {
-    const newCompany: Company = {
-      ...company,
-      id: crypto.randomUUID ? crypto.randomUUID() : `company-${Date.now()}`,
-    };
-    this.companies.push(newCompany);
-    this.saveToStorage();
-    this.notifyListeners('COMPANIES_UPDATED');
-    return newCompany;
+  public async addCompany(company: Omit<Company, 'id'>): Promise<Company> {
+    try {
+      const slug = company.slug || company.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const { data, error } = await this.supabase
+        .from('companies')
+        .insert({
+          name: company.name,
+          slug,
+          logo_url: company.logo_url || null,
+          website: company.website || null,
+          description: company.description || null,
+          brand_color: company.brand_color || '#3B82F6',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      const created = data as Company;
+      this.companies.push(created);
+      this.notifyListeners('COMPANIES_UPDATED');
+      return created;
+    } catch (err) {
+      console.error('Failed to create company in Supabase:', err);
+      // Fallback in-memory object
+      const fallback: Company = {
+        ...company,
+        id: crypto.randomUUID ? crypto.randomUUID() : `company-${Date.now()}`,
+      };
+      this.companies.push(fallback);
+      return fallback;
+    }
   }
 
-  public getBoard(boardId: string): Board | undefined {
-    return this.boards.find((b) => b.id === boardId) || this.boards[0];
+  public getBoard(boardId?: string): Board {
+    if (!boardId) return this.boards[0] || DEFAULT_BOARD;
+    return this.boards.find((b) => b.id === boardId) || this.boards[0] || DEFAULT_BOARD;
   }
 
   public getAllBoards(): Board[] {
     return this.boards;
   }
 
-  // Progressive Minesweeper Cell Discovery
+  // Progressive Minesweeper Cell Discovery (Fog of War)
   public revealCells(boardId: string, centerRow: number, centerCol: number, userId: string): BoardCell[] {
-    const board = this.getBoard(boardId) || DEFAULT_BOARD;
+    const board = this.getBoard(boardId);
     const radius = board.reveal_radius ?? 1;
 
     if (!this.discoveries[userId]) {
@@ -332,7 +353,7 @@ class GameEngineService {
     const newlyDiscovered: BoardCell[] = [];
 
     this.positions
-      .filter((p) => p.board_id === boardId)
+      .filter((p) => p.board_id === board.id || !p.board_id)
       .forEach((pos) => {
         const rowDiff = Math.abs(pos.row - centerRow);
         const colDiff = Math.abs(pos.col - centerCol);
@@ -351,21 +372,34 @@ class GameEngineService {
         }
       });
 
-    this.saveToStorage();
     this.notifyListeners('CELLS_REVEALED', { newlyDiscovered });
     return newlyDiscovered;
   }
 
+  // Reset Fog of War discoveries for a user
+  public resetDiscoveries(userId?: string) {
+    if (userId) {
+      delete this.discoveries[userId];
+    } else {
+      this.discoveries = {};
+    }
+    this.notifyListeners('CELLS_REVEALED', { newlyDiscovered: [] });
+  }
+
   // Get full board cells for a user
   public getBoardCells(boardId: string, userId: string): BoardCell[] {
+    const board = this.getBoard(boardId);
     const userDiscoveries = this.discoveries[userId] || new Set();
 
-    return this.positions
-      .filter((p) => p.board_id === boardId)
-      .map((pos) => {
-        const isDiscovered = userDiscoveries.has(pos.id);
-        return this.getCellState(pos, isDiscovered);
-      });
+    let boardPositions = this.positions.filter((p) => p.board_id === board.id);
+    if (boardPositions.length === 0) {
+      boardPositions = this.positions;
+    }
+
+    return boardPositions.map((pos) => {
+      const isDiscovered = userDiscoveries.has(pos.id);
+      return this.getCellState(pos, isDiscovered);
+    });
   }
 
   // Calculate dynamic Minesweeper base value: $1 if 0 neighbors, $3 if 1 neighbor, $5 if 2+ neighbors
@@ -378,7 +412,7 @@ class GameEngineService {
     let adjacentClaimsCount = 0;
     for (const claim of this.claims) {
       const claimedPos = this.positions.find((p) => p.id === claim.position_id);
-      if (!claimedPos || claimedPos.board_id !== pos.board_id) continue;
+      if (!claimedPos) continue;
       if (claimedPos.row === pos.row && claimedPos.col === pos.col) continue;
 
       const rowDiff = Math.abs(claimedPos.row - pos.row);
@@ -399,7 +433,7 @@ class GameEngineService {
 
   private getCellState(pos: Position, isDiscovered: boolean): BoardCell {
     const claim = this.claims.find((c) => c.position_id === pos.id);
-    const company = claim ? this.companies.find((c) => c.id === claim.company_id) : null;
+    const company = claim ? (claim.company || this.companies.find((c) => c.id === claim.company_id)) : null;
     const positionBids = this.bids.filter((b) => b.position_id === pos.id);
 
     const isLocked = Boolean(
@@ -414,8 +448,8 @@ class GameEngineService {
       col: pos.col,
       position_index: pos.row * 10 + pos.col + 1,
       is_discovered: isDiscovered,
-      position_type: isDiscovered ? dynamic.positionType : undefined,
-      base_value: isDiscovered ? dynamic.baseValue : undefined,
+      position_type: isDiscovered ? (pos.is_special ? 'SPECIAL' : dynamic.positionType) : undefined,
+      base_value: isDiscovered ? (pos.is_special ? 99.0 : dynamic.baseValue) : undefined,
       is_special: isDiscovered ? pos.is_special : undefined,
       current_bid: isDiscovered && claim ? claim.current_bid : undefined,
       claim: isDiscovered && claim ? { ...claim, company: company || undefined } : null,
@@ -426,7 +460,7 @@ class GameEngineService {
     };
   }
 
-  // ATOMIC PLACE BID FUNCTION
+  // ATOMIC PLACE BID FUNCTION VIA SUPABASE RPC
   public async placeBid(
     positionId: string,
     amount: number,
@@ -435,7 +469,7 @@ class GameEngineService {
   ): Promise<{ success: boolean; message: string; claim?: PositionClaim }> {
     const position = this.positions.find((p) => p.id === positionId);
     if (!position) {
-      throw new Error('Position not found.');
+      throw new Error('Position not found on the grid.');
     }
 
     const company = this.companies.find((c) => c.id === companyId);
@@ -443,179 +477,110 @@ class GameEngineService {
       throw new Error('Company not found. Please select or register a valid company.');
     }
 
-    const board = this.getBoard(position.board_id) || DEFAULT_BOARD;
-    const minIncrement = board.min_bid_increment || 1.0;
-    const existingClaim = this.claims.find((c) => c.position_id === positionId);
+    // Call atomic Supabase RPC place_bid
+    try {
+      const { data, error } = await this.supabase.rpc('place_bid', {
+        p_position_id: positionId,
+        p_amount: amount,
+        p_user_id: null,
+        p_company_id: companyId,
+      });
 
-    // 1. Check Special Position Lock
-    if (existingClaim?.lock_until) {
-      const lockEnd = new Date(existingClaim.lock_until).getTime();
-      if (lockEnd > Date.now()) {
-        const remaining = Math.ceil((lockEnd - Date.now()) / (1000 * 60 * 60));
-        throw new Error(
-          `This Special Position is locked for another ${remaining} hours. Rebidding is currently disabled.`
-        );
+      if (error) {
+        throw new Error(error.message);
       }
-    }
 
-    // 2. Check Minimum Bid against dynamic base value or existing claim
-    const dynamic = this.calculateBaseValue(position);
-    const minBid = existingClaim ? existingClaim.current_bid + minIncrement : dynamic.baseValue;
-    if (amount < minBid) {
-      throw new Error(
-        `Bid of $${amount} is invalid. The minimum acceptable bid is $${minBid.toFixed(2)}.`
-      );
-    }
+      // Re-fetch claims and bids to synchronize state
+      await Promise.all([this.refreshClaims(), this.refreshBids(), this.refreshNotifications()]);
+      this.notifyListeners('BID_PLACED');
 
-    // 3. Create Immutable Bid Record
-    const prevCompanyId = existingClaim?.company_id;
-    const prevAmount = existingClaim?.current_bid || null;
-
-    const newBidId = `bid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const newBid: Bid = {
-      id: newBidId,
-      position_id: positionId,
-      company_id: companyId,
-      user_id: userId,
-      amount,
-      previous_bid: prevAmount,
-      created_at: new Date().toISOString(),
-      company,
-    };
-    this.bids.unshift(newBid);
-
-    // 4. Calculate Lock Until if Special
-    let lockUntil: string | null = null;
-    if (position.is_special) {
-      const lockHours = board.special_lock_duration_hours || 168;
-      lockUntil = new Date(Date.now() + lockHours * 60 * 60 * 1000).toISOString();
-    }
-
-    // 5. Upsert Claim
-    const updatedClaim: PositionClaim = {
-      id: existingClaim?.id || `claim-${positionId}`,
-      position_id: positionId,
-      company_id: companyId,
-      winning_bid_id: newBidId,
-      current_bid: amount,
-      claimed_at: new Date().toISOString(),
-      lock_until: lockUntil,
-      updated_at: new Date().toISOString(),
-      company,
-    };
-
-    const claimIdx = this.claims.findIndex((c) => c.position_id === positionId);
-    if (claimIdx >= 0) {
-      this.claims[claimIdx] = updatedClaim;
-    } else {
-      this.claims.push(updatedClaim);
-    }
-
-    // 6. Generate Outbid Notification for Previous Winner if different
-    if (prevCompanyId && prevCompanyId !== companyId) {
-      const outbidNotif: GameNotification = {
-        id: `notif-${Date.now()}-outbid`,
-        company_id: prevCompanyId,
-        type: 'outbid',
-        title: `Outbid on Position #${position.row * 10 + position.col + 1}`,
-        message: `${company.name} placed a higher bid of $${amount} on Position #${
-          position.row * 10 + position.col + 1
-        }.`,
-        position_id: positionId,
-        amount,
-        is_read: false,
-        created_at: new Date().toISOString(),
+      const updatedClaim = this.claims.find((c) => c.position_id === positionId);
+      return {
+        success: true,
+        message: (data as { message?: string })?.message || 'Bid placed successfully!',
+        claim: updatedClaim,
       };
-      this.notifications.unshift(outbidNotif);
-
-      if (this.broadcastChannel) {
-        this.broadcastChannel.postMessage({
-          type: 'OUTBID_ALERT',
-          payload: { outbidNotif, targetCompanyId: prevCompanyId },
-        });
-      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to place bid.';
+      throw new Error(message);
     }
-
-    // 7. Generate Winning/Confirmation Notification
-    const successNotif: GameNotification = {
-      id: `notif-${Date.now()}-success`,
-      company_id: companyId,
-      type: position.is_special ? 'special_claimed' : 'bid_placed',
-      title: position.is_special ? '🌟 Special $99 Position Acquired!' : 'Bid Placed Successfully',
-      message: position.is_special
-        ? `Congratulations! ${company.name} claimed the Special Position for $${amount}. Locked for 7 days.`
-        : `Your bid of $${amount} on Position #${
-            position.row * 10 + position.col + 1
-          } is now the winning bid!`,
-      position_id: positionId,
-      amount,
-      is_read: false,
-      created_at: new Date().toISOString(),
-    };
-    this.notifications.unshift(successNotif);
-
-    this.saveToStorage();
-    this.notifyListeners('BID_PLACED', { claim: updatedClaim, bid: newBid });
-
-    return {
-      success: true,
-      message: 'Bid accepted!',
-      claim: updatedClaim,
-    };
   }
 
-  // Seamless Bidding with 3 company fields (Name, Website URL, Description)
+  // Seamless Bidding with company fields (Name, Website URL, Description, Logo URL, Brand Color)
   public async placeBidWithDetails(params: {
     positionId: string;
     amount: number;
     name: string;
     website?: string;
     description?: string;
+    logoUrl?: string;
+    brandColor?: string;
   }): Promise<{ success: boolean; message: string; claim?: PositionClaim; company: Company }> {
-    const { positionId, amount, name, website, description } = params;
+    const { positionId, amount, name, website, description, logoUrl, brandColor } = params;
     const trimmedName = name.trim();
     if (!trimmedName) {
       throw new Error('Please enter a company or bidder name.');
     }
 
-    // Find existing company or create new
-    let company = this.companies.find(
-      (c) => c.name.toLowerCase() === trimmedName.toLowerCase()
-    );
-
+    // Format website URL
     let formattedWebsite = website?.trim() || null;
     if (formattedWebsite && !/^https?:\/\//i.test(formattedWebsite)) {
       formattedWebsite = `https://${formattedWebsite}`;
     }
 
-    if (!company) {
-      const brandColors = [
-        '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-        '#EC4899', '#06B6D4', '#6366F1', '#14B8A6', '#F97316'
-      ];
-      let hash = 0;
-      for (let i = 0; i < trimmedName.length; i++) {
-        hash = trimmedName.charCodeAt(i) + ((hash << 5) - hash);
+    // Determine fallback or extracted logo
+    let finalLogoUrl = logoUrl?.trim() || null;
+    if (!finalLogoUrl && formattedWebsite) {
+      const hostname = formattedWebsite.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+      if (hostname) {
+        finalLogoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=128`;
       }
-      const colorIndex = Math.abs(hash) % brandColors.length;
-      const brandColor = brandColors[colorIndex];
-
-      const logoUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(trimmedName)}`;
-
-      company = {
-        id: crypto.randomUUID ? crypto.randomUUID() : `company-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        name: trimmedName,
-        slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        logo_url: logoUrl,
-        website: formattedWebsite,
-        description: description?.trim() || 'Active grid bidder.',
-        brand_color: brandColor,
-      };
-      this.companies.push(company);
-    } else {
-      if (formattedWebsite) company.website = formattedWebsite;
-      if (description?.trim()) company.description = description.trim();
     }
+    if (!finalLogoUrl) {
+      finalLogoUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(trimmedName)}`;
+    }
+
+    // 1. Query Supabase for existing company by name or insert new
+    let company: Company | null = null;
+    const { data: existingCompany } = await this.supabase
+      .from('companies')
+      .select('*')
+      .ilike('name', trimmedName)
+      .single();
+
+    if (existingCompany) {
+      company = existingCompany as Company;
+      // Update details if changed
+      await this.supabase
+        .from('companies')
+        .update({
+          website: formattedWebsite || company.website,
+          description: description?.trim() || company.description,
+          logo_url: finalLogoUrl || company.logo_url,
+          brand_color: brandColor || company.brand_color,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', company.id);
+    } else {
+      const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const { data: newCompany, error: insertError } = await this.supabase
+        .from('companies')
+        .insert({
+          name: trimmedName,
+          slug,
+          website: formattedWebsite,
+          description: description?.trim() || 'Active grid bidder.',
+          logo_url: finalLogoUrl,
+          brand_color: brandColor || '#3B82F6',
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      company = newCompany as Company;
+    }
+
+    await this.refreshCompanies();
 
     const userId = `user-${company.id}`;
     const result = await this.placeBid(positionId, amount, userId, company.id);
@@ -628,7 +593,7 @@ class GameEngineService {
       .filter((b) => b.position_id === positionId)
       .map((b) => ({
         ...b,
-        company: this.companies.find((c) => c.id === b.company_id),
+        company: b.company || this.companies.find((c) => c.id === b.company_id),
       }))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
@@ -669,7 +634,6 @@ class GameEngineService {
         const companyBids = this.bids.filter((b) => b.company_id === company.id);
         const totalValuation = companyClaims.reduce((acc, c) => acc + c.current_bid, 0);
         
-        // Calculate highest bid across claims and bids
         const highestFromBids = companyBids.reduce((max, b) => Math.max(max, b.amount), 0);
         const highestFromClaims = companyClaims.reduce((max, c) => Math.max(max, c.current_bid), 0);
         const highestBid = Math.max(highestFromBids, highestFromClaims);
@@ -717,26 +681,34 @@ class GameEngineService {
     return this.notifications.filter((n) => n.company_id === companyId).slice(0, 20);
   }
 
-  public markNotificationAsRead(id: string) {
+  public async markNotificationAsRead(id: string) {
     const notif = this.notifications.find((n) => n.id === id);
     if (notif) {
       notif.is_read = true;
-      this.saveToStorage();
+      await this.supabase.from('notifications').update({ is_read: true }).eq('id', id);
       this.notifyListeners('NOTIFICATIONS_UPDATED');
     }
   }
 
-  public markAllNotificationsAsRead(companyId: string) {
+  public async markAllNotificationsAsRead(companyId: string) {
     this.notifications.forEach((n) => {
       if (n.company_id === companyId) n.is_read = true;
     });
-    this.saveToStorage();
+    await this.supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('company_id', companyId);
     this.notifyListeners('NOTIFICATIONS_UPDATED');
   }
 
   // Get High-Level Game Stats
   public getGameStats(boardId: string, userId: string): GameStats {
-    const boardPositions = this.positions.filter((p) => p.board_id === boardId);
+    const board = this.getBoard(boardId);
+    let boardPositions = this.positions.filter((p) => p.board_id === board.id);
+    if (boardPositions.length === 0) {
+      boardPositions = this.positions;
+    }
+
     const userDiscoveries = this.discoveries[userId] || new Set();
     const activeClaims = this.claims.filter((c) =>
       boardPositions.some((p) => p.id === c.position_id)
@@ -752,7 +724,7 @@ class GameEngineService {
     );
 
     return {
-      totalCells: boardPositions.length,
+      totalCells: boardPositions.length || 100,
       discoveredCells: userDiscoveries.size,
       claimedCells: activeClaims.length,
       totalMarketCap,
@@ -761,28 +733,6 @@ class GameEngineService {
       specialLocked,
       specialLockTimeLeft: specialClaim?.lock_until,
     };
-  }
-
-  // Admin: Reset & Re-Seed Board
-  public resetBoard(rows = 10, cols = 10, minIncrement = 1.0, lockDurationHours = 168) {
-    const boardId = DEFAULT_BOARD.id;
-    this.boards = [
-      {
-        ...DEFAULT_BOARD,
-        rows,
-        columns: cols,
-        min_bid_increment: minIncrement,
-        special_lock_duration_hours: lockDurationHours,
-      },
-    ];
-    this.positions = generateInitialPositions(boardId, rows, cols);
-    const { bids, claims } = generateInitialClaimsAndBids(this.positions, this.companies);
-    this.bids = bids;
-    this.claims = claims;
-    this.discoveries = {};
-    this.notifications = [];
-    this.saveToStorage();
-    this.notifyListeners('BOARD_RESET');
   }
 }
 
