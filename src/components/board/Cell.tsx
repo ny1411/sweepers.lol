@@ -20,6 +20,12 @@ export const Cell: React.FC<CellProps> = ({
   onCellClick,
   staggerIndex = 0,
 }) => {
+  const [imageError, setImageError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [cell.company?.logo_url]);
+
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     onCellClick(cell);
@@ -55,7 +61,7 @@ export const Cell: React.FC<CellProps> = ({
       style={{
         animationDelay: `${Math.min(staggerIndex * 25, 400)}ms`,
       }}
-      className={`relative aspect-square w-full select-none cursor-pointer rounded-xs ms-tile-pressed flex flex-col items-center justify-center p-0.5 md:p-1 overflow-hidden transition-all focus:outline-hidden animate-reveal ${
+      className={`relative aspect-square w-full select-none cursor-pointer rounded-xs ms-tile-pressed flex flex-col items-center justify-between p-0.5 md:p-1 overflow-hidden transition-all focus:outline-hidden animate-reveal ${
         isSelected
           ? 'ring-3 ring-amber-400 shadow-lg scale-105 z-10'
           : isMyCompanyOwner
@@ -90,7 +96,7 @@ export const Cell: React.FC<CellProps> = ({
         <div className="w-full h-full flex flex-col items-center justify-between py-0.5">
           {/* Company Logo or Name */}
           <div className="flex-1 flex items-center justify-center w-full min-h-0">
-            {cell.company?.logo_url ? (
+            {cell.company?.logo_url && !imageError ? (
               <div className="relative w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center">
                 <Image
                   src={cell.company.logo_url}
@@ -99,11 +105,12 @@ export const Cell: React.FC<CellProps> = ({
                   height={32}
                   className="max-h-full max-w-full object-contain filter drop-shadow-xs"
                   unoptimized
+                  onError={() => setImageError(true)}
                 />
               </div>
             ) : (
               <span
-                className="text-[10px] sm:text-xs font-black uppercase tracking-tight px-1 py-0.5 rounded-xs text-white"
+                className="text-[10px] sm:text-xs font-black uppercase tracking-tight px-1 py-0.5 rounded-xs text-white shadow-xs"
                 style={{ backgroundColor: cell.company?.brand_color || '#3b82f6' }}
               >
                 {cell.company?.name?.substring(0, 5) || 'CLAIM'}

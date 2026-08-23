@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Footer } from '@/components/layout/Footer';
 import { BoardGrid } from '@/components/board/BoardGrid';
 import { TopCompaniesDashboard } from '@/components/dashboard/TopCompaniesDashboard';
@@ -15,18 +15,92 @@ import {
   Flame,
   Volume2,
   VolumeX,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 import { sounds } from '@/lib/sound';
+import confetti from 'canvas-confetti';
+
+function PaymentSuccessHandler({
+  onPaymentSuccess,
+}: {
+  onPaymentSuccess: (info: { positionId?: string; companyName?: string; amount?: string }) => void;
+}) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment_success');
+    const sessionId = urlParams.get('session_id');
+    const positionId = urlParams.get('position_id');
+    const positionIndex = urlParams.get('position_index');
+    const amount = urlParams.get('amount');
+
+    if (paymentSuccess === 'true' && sessionId) {
+      // 1. Verify with backend
+      fetch(`/api/payments/verify?session_id=${encodeURIComponent(sessionId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.verified) {
+            sounds.playSpecialReveal();
+            confetti({
+              particleCount: 100,
+              spread: 80,
+              origin: { y: 0.6 },
+            });
+
+            const meta = data.metadata || {};
+            const companyName = meta.company_name || 'Your Company';
+            const bidAmount = meta.amount || amount || '0';
+
+            // Also ensure gameEngine reflects this in memory / real-time
+            if (meta.position_id && meta.company_name) {
+              gameEngine.placeBidWithDetails({
+                positionId: meta.position_id,
+                amount: parseFloat(bidAmount) || 1,
+                name: meta.company_name,
+                website: meta.website,
+                description: meta.description,
+                logoUrl: meta.logo_url,
+                brandColor: meta.brand_color,
+              }).catch(() => {});
+            }
+
+            onPaymentSuccess({
+              positionId: meta.position_id || positionId || undefined,
+              companyName,
+              amount: bidAmount,
+            });
+          }
+        })
+        .catch((err) => {
+          console.error('Payment verification error:', err);
+        })
+        .finally(() => {
+          // Clean URL without reload
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    }
+  }, [onPaymentSuccess]);
+
+  return null;
+}
 
 export default function HomePage() {
   const [selectedCell, setSelectedCell] = useState<BoardCell | null>(null);
   const [stats, setStats] = useState<GameStats | null>(null);
   const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState<{
+    companyName?: string;
+    amount?: string;
+  } | null>(null);
 
   useEffect(() => {
-    // Initial stats load
-    const currentStats = gameEngine.getGameStats('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'guest-user');
-    setStats(currentStats);
+    // Initial stats load and Supabase sync
+    gameEngine.loadAllFromSupabase().then(() => {
+      const currentStats = gameEngine.getGameStats('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'guest-user');
+      setStats(currentStats);
+    });
 
     const unsubscribe = gameEngine.subscribe(() => {
       const updated = gameEngine.getGameStats('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'guest-user');
@@ -47,6 +121,17 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-950 text-neutral-100 selection:bg-amber-400 selection:text-neutral-950">
+      <Suspense fallback={null}>
+        <PaymentSuccessHandler
+          onPaymentSuccess={(info) => {
+            setPaymentNotice({
+              companyName: info.companyName,
+              amount: info.amount,
+            });
+          }}
+        />
+      </Suspense>
+
       {/* Header Banner */}
       <header className="w-full border-b border-neutral-800/80 bg-neutral-950/80 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
@@ -96,6 +181,30 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+
+      {/* Payment Success Toast Banner */}
+      {paymentNotice && (
+        <div className="w-full bg-linear-to-r from-emerald-950 via-emerald-900 to-emerald-950 border-b border-emerald-500/40 py-3 px-4 shadow-lg animate-in slide-in-from-top-4 duration-300">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 text-emerald-100 text-sm">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 animate-bounce" />
+              <div>
+                <span className="font-bold text-white">Payment Confirmed!</span>{' '}
+                <span>
+                  {paymentNotice.companyName || 'Your bid'} is now live on the grid for{' '}
+                  <strong className="text-amber-300">${paymentNotice.amount}</strong> via Dodo Payments.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setPaymentNotice(null)}
+              className="p-1 rounded-lg hover:bg-emerald-800/50 text-emerald-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Single-Page Gameplay Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center gap-6">

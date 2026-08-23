@@ -19,9 +19,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [website, setWebsite] = useState('');
   const [description, setDescription] = useState('');
   const [brandColor, setBrandColor] = useState('#3B82F6');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleFetchWebsiteMetadata = async (urlStr: string) => {
+    const trimmed = urlStr.trim();
+    if (!trimmed || (!trimmed.includes('.') && !trimmed.startsWith('http'))) return;
+    setIsLoadingMetadata(true);
+    try {
+      const res = await fetch(`/api/metadata?url=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          if (data.logo) setLogoUrl(data.logo);
+          if (data.brandColor) setBrandColor(data.brandColor);
+          if (!name.trim() && (data.siteName || data.title)) setName(data.siteName || data.title);
+          if (!description.trim() && data.description) setDescription(data.description);
+        }
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setIsLoadingMetadata(false);
+    }
+  };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +60,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         website: website.trim() || undefined,
         description: description.trim() || undefined,
         brand_color: brandColor,
+        logo_url: logoUrl || undefined,
       });
       onClose();
     } catch {
@@ -176,17 +201,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                  Website (Optional)
+                <label className="block text-xs font-semibold text-neutral-300 mb-1 flex items-center justify-between">
+                  <span>Website (Auto-fetches Logo)</span>
+                  {isLoadingMetadata && <span className="text-[10px] text-amber-400">Loading logo...</span>}
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
+                  onChange={(e) => {
+                    setWebsite(e.target.value);
+                  }}
+                  onBlur={() => {
+                    if (website.trim()) handleFetchWebsiteMetadata(website);
+                  }}
                   placeholder="https://example.com"
                   className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl text-white text-sm focus:outline-hidden focus:border-blue-500"
                 />
               </div>
+
+              {logoUrl && (
+                <div className="bg-neutral-800/80 border border-neutral-700 p-2.5 rounded-xl flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-700 p-1 flex items-center justify-center shrink-0">
+                    <Image
+                      src={logoUrl}
+                      alt="Logo preview"
+                      width={24}
+                      height={24}
+                      className="max-h-full max-w-full object-contain"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="text-xs text-neutral-300 truncate">
+                    <span className="font-bold text-amber-400 block text-[11px]">Logo Auto-Detected</span>
+                    <span className="text-[10px] text-neutral-400">Will be displayed on Minesweeper grid</span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-300 mb-1">

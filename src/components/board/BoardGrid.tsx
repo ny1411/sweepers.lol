@@ -72,7 +72,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   // Click on cell
   const handleCellClick = (cell: BoardCell) => {
     if (!cell.is_discovered) {
-      // 1. UNCOVER MECHANIC: Progressive Minesweeper Reveal
+      // 1. UNCOVER MECHANIC: Progressive Minesweeper Reveal (Show prices & bidded logos on grid first)
       sounds.playClick();
       setMood('excited');
       setTimeout(() => setMood('normal'), 600);
@@ -88,16 +88,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
       }
 
       refreshBoard();
-
-      // If user clicked this exact cell, select it for detail
-      const freshlyDiscoveredTarget = newlyDiscovered.find(
-        (c) => c.row === cell.row && c.col === cell.col
-      );
-      if (freshlyDiscoveredTarget) {
-        onSelectCell(freshlyDiscoveredTarget);
-      }
+      // Do not open modal on initial discovery click, allow user to view price & bidded logos on board first
     } else {
-      // 2. REVEALED CELL: Open Bidding Drawer / Modal
+      // 2. REVEALED CELL: Click revealed cell to open Bidding Modal
       sounds.playClick();
       onSelectCell(cell);
     }
@@ -105,7 +98,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
 
   // Reset Fog of War for current player
   const handleResetDiscovery = () => {
-    localStorage.removeItem('sweeper_discoveries');
+    gameEngine.resetDiscoveries(userId);
     refreshBoard();
   };
 
