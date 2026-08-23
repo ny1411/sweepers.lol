@@ -95,14 +95,15 @@ export async function createBidCheckoutSession(
     console.error('Dodo Payments Checkout Creation Error:', error);
     if (error && typeof error === 'object' && 'status' in error) {
       const errObj = error as { status?: number; error?: { code?: string; message?: string; error?: string }; message?: string };
+      const currentEnv = (process.env.DODO_PAYMENTS_ENVIRONMENT as 'test_mode' | 'live_mode') || 'test_mode';
       if (errObj.status === 401) {
         throw new Error(
-          'Dodo Payments 401 Unauthorized: The API key is invalid for this environment. If DODO_PAYMENTS_ENVIRONMENT is "test_mode", please use the Test Mode API key from the Dodo Payments dashboard (test mode toggle).'
+          `Dodo Payments 401 Unauthorized: The API key is invalid for this environment (${currentEnv}). Please ensure you are using your ${currentEnv === 'live_mode' ? 'Live Mode' : 'Test Mode'} API key from the Dodo Payments dashboard.`
         );
       }
       if (errObj.status === 403 && errObj.error?.code === 'MERCHANT_NOT_LIVE') {
         throw new Error(
-          'Dodo Payments 403: Live payments are not yet enabled for your merchant account. Please set DODO_PAYMENTS_ENVIRONMENT=test_mode and use your Test Mode API key.'
+          'Dodo Payments 403: Live payments are not yet enabled for your merchant account on Dodo Payments. Please complete merchant onboarding or switch back to test_mode.'
         );
       }
     }
