@@ -1,0 +1,160 @@
+'use client';
+
+import React from 'react';
+import { BoardCell } from '@/types/game';
+import { Lock, Crown } from 'lucide-react';
+import Image from 'next/image';
+
+interface CellProps {
+  cell: BoardCell;
+  isSelected: boolean;
+  isMyCompanyOwner: boolean;
+  onCellClick: (cell: BoardCell) => void;
+  staggerIndex?: number;
+}
+
+export const Cell: React.FC<CellProps> = ({
+  cell,
+  isSelected,
+  isMyCompanyOwner,
+  onCellClick,
+  staggerIndex = 0,
+}) => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onCellClick(cell);
+  };
+
+  // 1. UNREVEALED / COVERED CELL
+  if (!cell.is_discovered) {
+    return (
+      <button
+        onClick={handleClick}
+        data-testid={`cell-${cell.row}-${cell.col}`}
+        className={`relative aspect-square w-full select-none cursor-pointer rounded-xs ms-tile-raised flex items-center justify-center font-bold text-gray-400/40 text-sm md:text-base transition-transform active:scale-95 group focus:outline-hidden ${
+          isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''
+        }`}
+        title={`Unrevealed block (${cell.row + 1}, ${cell.col + 1}) - Click to uncover`}
+      >
+        <span className="opacity-0 group-hover:opacity-40 transition-opacity text-xs font-mono">
+          ?
+        </span>
+      </button>
+    );
+  }
+
+  // 2. REVEALED CELL
+  const isClaimed = Boolean(cell.claim);
+  const isSpecial = Boolean(cell.is_special);
+  const isLocked = Boolean(cell.is_locked);
+
+  return (
+    <button
+      onClick={handleClick}
+      data-testid={`cell-${cell.row}-${cell.col}`}
+      style={{
+        animationDelay: `${Math.min(staggerIndex * 25, 400)}ms`,
+      }}
+      className={`relative aspect-square w-full select-none cursor-pointer rounded-xs ms-tile-pressed flex flex-col items-center justify-center p-0.5 md:p-1 overflow-hidden transition-all focus:outline-hidden animate-reveal ${
+        isSelected
+          ? 'ring-3 ring-amber-400 shadow-lg scale-105 z-10'
+          : isMyCompanyOwner
+          ? 'ring-2 ring-emerald-500/80 bg-emerald-50/60 dark:bg-emerald-950/20'
+          : ''
+      } ${
+        isLocked
+          ? 'border-amber-500/80 bg-amber-50/50 dark:bg-amber-950/30'
+          : ''
+      }`}
+      title={`Position #${cell.position_index}: ${
+        isSpecial ? 'Special $99' : `$${cell.base_value}`
+      } ${isClaimed ? `(Claimed by ${cell.company?.name || 'Company'} for $${cell.current_bid})` : '(Available for bidding)'}`}
+    >
+      {/* Locked Badge */}
+      {isLocked && (
+        <div className="absolute top-0.5 right-0.5 bg-amber-500 text-black text-[9px] font-bold px-1 rounded-xs flex items-center gap-0.5 z-2 shadow-xs">
+          <Lock className="w-2.5 h-2.5" />
+          <span className="hidden sm:inline">LOCKED</span>
+        </div>
+      )}
+
+      {/* Special Crown Icon */}
+      {isSpecial && !isLocked && (
+        <div className="absolute top-0.5 right-0.5 text-amber-500 z-2 drop-shadow-xs">
+          <Crown className="w-3 h-3 fill-amber-400 text-amber-600 animate-pulse" />
+        </div>
+      )}
+
+      {/* Cell Content: Claimed vs Unclaimed */}
+      {isClaimed ? (
+        <div className="w-full h-full flex flex-col items-center justify-between py-0.5">
+          {/* Company Logo or Name */}
+          <div className="flex-1 flex items-center justify-center w-full min-h-0">
+            {cell.company?.logo_url ? (
+              <div className="relative w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center">
+                <Image
+                  src={cell.company.logo_url}
+                  alt={cell.company.name}
+                  width={32}
+                  height={32}
+                  className="max-h-full max-w-full object-contain filter drop-shadow-xs"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <span
+                className="text-[10px] sm:text-xs font-black uppercase tracking-tight px-1 py-0.5 rounded-xs text-white"
+                style={{ backgroundColor: cell.company?.brand_color || '#3b82f6' }}
+              >
+                {cell.company?.name?.substring(0, 5) || 'CLAIM'}
+              </span>
+            )}
+          </div>
+
+          {/* Current Bid Badge */}
+          <div className="w-full text-center">
+            <span className="inline-block bg-neutral-900/90 text-white font-mono font-black text-[10px] sm:text-xs px-1 py-0.2 rounded-xs shadow-xs border border-neutral-700/50">
+              ${cell.current_bid}
+            </span>
+          </div>
+        </div>
+      ) : (
+        /* Unclaimed Available Position matching reference image */
+        <div className="w-full h-full flex flex-col items-center justify-center">
+          {isSpecial ? (
+            /* Special Gold Coin graphic matching reference image */
+            <div className="flex flex-col items-center justify-center animate-gold-coin">
+              <div className="relative w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-linear-to-b from-yellow-300 via-amber-400 to-yellow-600 rounded-full border-2 border-yellow-800 shadow-md flex items-center justify-center">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-yellow-200/80 flex items-center justify-center bg-amber-400/90">
+                  <span className="font-mono font-black text-[9px] sm:text-[10px] text-yellow-950 tracking-tighter">
+                    $99
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : cell.position_type === '1' ? (
+            <span className="pixel-num-1 text-xl sm:text-2xl md:text-3xl leading-none">
+              $1
+            </span>
+          ) : cell.position_type === '2' ? (
+            <span className="pixel-num-2 text-xl sm:text-2xl md:text-3xl leading-none">
+              $3
+            </span>
+          ) : (
+            <span className="pixel-num-3 text-xl sm:text-2xl md:text-3xl leading-none">
+              $5
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Owner Brand Indicator strip */}
+      {isClaimed && cell.company && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-1"
+          style={{ backgroundColor: cell.company.brand_color || '#3b82f6' }}
+        />
+      )}
+    </button>
+  );
+};
