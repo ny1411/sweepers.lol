@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import special99Img from '@/app/99usd.png';
+import mineImg from '@/app/mine.png';
 
 interface BidModalProps {
   cell: BoardCell | null;
@@ -250,6 +251,17 @@ export const BidModal: React.FC<BidModalProps> = ({
                   className="w-3.5 h-3.5 object-contain"
                 />
                 Special $99
+              </span>
+            ) : cell.is_mine && !cell.claim ? (
+              <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-2 py-0.5 rounded-full border border-red-500/40 uppercase tracking-wider flex items-center gap-1">
+                <Image
+                  src={mineImg}
+                  alt="Mine"
+                  width={14}
+                  height={14}
+                  className="w-3.5 h-3.5 object-contain"
+                />
+                Defuse & Claim
               </span>
             ) : (
               <span className="text-[10px] bg-neutral-800 text-neutral-400 font-medium px-2 py-0.5 rounded-full border border-neutral-700">

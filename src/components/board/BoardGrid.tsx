@@ -7,7 +7,7 @@ import { BoardHUD } from './BoardHUD';
 import { gameEngine, DEFAULT_BOARD } from '@/lib/game/engine';
 import { useAuth } from '@/context/AuthContext';
 import { sounds } from '@/lib/sound';
-import { ZoomIn, ZoomOut, RotateCcw, Compass } from 'lucide-react';
+import { ZoomIn, ZoomOut, Compass, Flag } from 'lucide-react';
 
 interface BoardGridProps {
   onSelectCell: (cell: BoardCell) => void;
@@ -27,13 +27,17 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
     totalCells: 100,
     discoveredCells: 0,
     claimedCells: 0,
+    totalMines: 15,
+    remainingMines: 15,
+    flaggedCount: 0,
     totalMarketCap: 0,
     activeBidders: 0,
     highestBid: 0,
     specialLocked: false,
   });
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [mood, setMood] = useState<'normal' | 'excited' | 'won' | 'outbid'>('normal');
+  const [mood, setMood] = useState<'normal' | 'excited' | 'won' | 'outbid' | 'exploded'>('normal');
+  const [isShaking, setIsShaking] = useState(false);
 
   const userId = currentUser?.id || 'guest-user';
 
@@ -69,30 +73,45 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
     return () => unsubscribe();
   }, [boardId, userId, currentCompany]);
 
-  // Click on cell
+  // Click on cell (Left click: Uncover / Select for bidding)
   const handleCellClick = (cell: BoardCell) => {
     if (!cell.is_discovered) {
-      // 1. UNCOVER MECHANIC: Progressive Minesweeper Reveal (Show prices & bidded logos on grid first)
-      sounds.playClick();
-      setMood('excited');
-      setTimeout(() => setMood('normal'), 600);
+      const result = gameEngine.revealCells(boardId, cell.row, cell.col, userId);
 
-      const newlyDiscovered = gameEngine.revealCells(boardId, cell.row, cell.col, userId);
-
-      // Play staggered sound if multiple uncovered
-      const specialFound = newlyDiscovered.some((c) => c.is_special);
-      if (specialFound) {
+      if (result.hitMine) {
+        sounds.playExplosion();
+        setIsShaking(true);
+        setMood('exploded');
+        setTimeout(() => setIsShaking(false), 500);
+        setTimeout(() => setMood('normal'), 3000);
+      } else if (result.hitSpecial) {
         sounds.playSpecialReveal();
+        setMood('won');
+        setTimeout(() => setMood('normal'), 2500);
       } else {
-        sounds.playReveal(Math.min(newlyDiscovered.length, 5));
+        if (result.newlyDiscovered.length > 1) {
+          sounds.playCascade();
+        } else {
+          sounds.playClick();
+        }
+        setMood('excited');
+        setTimeout(() => setMood('normal'), 700);
       }
 
       refreshBoard();
-      // Do not open modal on initial discovery click, allow user to view price & bidded logos on board first
     } else {
-      // 2. REVEALED CELL: Click revealed cell to open Bidding Modal
+      // Click revealed cell to open Bidding Modal
       sounds.playClick();
       onSelectCell(cell);
+    }
+  };
+
+  // Right-click on cell: Toggle Flag 🚩
+  const handleCellRightClick = (cell: BoardCell) => {
+    if (!cell.is_discovered) {
+      gameEngine.toggleFlag(boardId, cell.row, cell.col, userId);
+      sounds.playFlag();
+      refreshBoard();
     }
   };
 
@@ -104,10 +123,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
 
   // Scout All Cells
   const handleAutoDiscoverAll = () => {
-    // Reveal center and corners
     gameEngine.revealCells(boardId, 2, 2, userId);
     gameEngine.revealCells(boardId, 7, 7, userId);
-    gameEngine.revealCells(boardId, 1, 2, userId); // Special position
+    gameEngine.revealCells(boardId, 4, 4, userId);
     gameEngine.revealCells(boardId, 8, 2, userId);
     gameEngine.revealCells(boardId, 2, 8, userId);
     refreshBoard();
@@ -116,7 +134,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   return (
     <div className="w-full flex flex-col items-center">
       {/* 3D Window Frame */}
-      <div className="ms-window-frame p-2 sm:p-4 rounded-xs w-full max-w-2xl bg-[#c0c0c0] shadow-2xl border-4 border-[#dfdfdf]">
+      <div className={`ms-window-frame p-2 sm:p-4 rounded-xs w-full max-w-2xl bg-[#c0c0c0] shadow-2xl border-4 border-[#dfdfdf] ${
+        isShaking ? 'animate-board-shake' : ''
+      }`}>
         {/* Minesweeper HUD Header */}
         <BoardHUD
           stats={stats}
@@ -144,6 +164,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                   isSelected={selectedCell?.id === cell.id}
                   isMyCompanyOwner={cell.claim?.company_id === currentCompany?.id}
                   onCellClick={handleCellClick}
+                  onCellRightClick={handleCellRightClick}
                   staggerIndex={idx % 10}
                 />
               ))}
@@ -155,8 +176,8 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
         <div className="mt-2.5 flex items-center justify-between text-xs text-neutral-800 font-semibold px-1">
           <div className="flex items-center gap-1.5 text-neutral-700">
             <Compass className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Click grey tiles to discover valuable territory.</span>
-            <span className="sm:hidden">Tap tiles to uncover.</span>
+            <span className="hidden sm:inline">Left-click to uncover. Right-click to 🚩 flag mines. Click revealed tiles to bid.</span>
+            <span className="sm:hidden">Tap to uncover. Right-click to flag.</span>
           </div>
 
           <div className="flex items-center gap-1">

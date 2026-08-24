@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react';
 import { GameStats } from '@/types/game';
-import { Volume2, VolumeX, Sparkles, RefreshCw } from 'lucide-react';
+import { Volume2, VolumeX, Sparkles, Flag } from 'lucide-react';
 import { sounds } from '@/lib/sound';
 
 interface BoardHUDProps {
   stats: GameStats;
   onResetDiscovery?: () => void;
   onAutoDiscoverAll?: () => void;
-  statusMood?: 'normal' | 'excited' | 'won' | 'outbid';
+  statusMood?: 'normal' | 'excited' | 'won' | 'outbid' | 'exploded';
 }
 
 export const BoardHUD: React.FC<BoardHUDProps> = ({
@@ -28,8 +28,20 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
 
   const renderSmileySvg = () => {
     switch (statusMood) {
+      case 'exploded':
+        return (
+          /* Dead / Shocked Exploded Face 😵 */
+          <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7 animate-bounce" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#EF4444" stroke="#7F1D1D" strokeWidth="1.5" />
+            {/* X Eyes */}
+            <path d="M7 8l3 3m0-3l-3 3M14 8l3 3m0-3l-3 3" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+            {/* Shocked Mouth */}
+            <ellipse cx="12" cy="16" rx="2.5" ry="3" fill="#18181B" stroke="#000000" strokeWidth="1" />
+          </svg>
+        );
       case 'excited':
         return (
+          /* Surprised / Cautious 😮 */
           <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
             <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
             <circle cx="8.5" cy="9" r="1.5" fill="#1E293B" />
@@ -39,14 +51,17 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
         );
       case 'won':
         return (
+          /* Cool / Victorious 😎 */
           <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
             <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
+            {/* Sunglasses */}
             <path d="M4.5 10h15M5 9h6v3a3 3 0 01-6 0V9zm8 0h6v3a3 3 0 01-6 0V9z" fill="#0F172A" stroke="#0F172A" strokeWidth="1" />
             <path d="M8 16.5c1.5 1.5 6.5 1.5 8 0" stroke="#713F12" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         );
       case 'outbid':
         return (
+          /* Crying / Outbid 😭 */
           <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
             <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
             <path d="M7 8l3 3m0-3l-3 3M14 8l3 3m0-3l-3 3" stroke="#0F172A" strokeWidth="1.5" strokeLinecap="round" />
@@ -55,6 +70,7 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
         );
       default:
         return (
+          /* Classic Minesweeper Smile 😊 */
           <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7" fill="none">
             <circle cx="12" cy="12" r="10" fill="#FACC15" stroke="#713F12" strokeWidth="1.5" />
             <circle cx="8.5" cy="9.5" r="1.5" fill="#1E293B" />
@@ -65,16 +81,18 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
     }
   };
 
+  const remainingMines = stats.remainingMines ?? Math.max(0, 15 - stats.claimedCells);
+
   return (
     <div className="w-full ms-sunken-panel p-2 sm:p-3 mb-3 sm:mb-4 flex items-center justify-between gap-2 shadow-inner rounded-xs">
-      {/* 1. LEFT LCD: Market Cap / Total Valuation */}
+      {/* 1. LEFT LCD: Remaining Mines Counter (Classic 3-Digit Red LED) */}
       <div className="flex items-center gap-1.5">
-        <div className="ms-led-display px-2 py-1 text-center min-w-[70px] sm:min-w-[95px]">
-          <div className="text-[9px] uppercase tracking-wider text-red-500/70 font-sans font-bold">
-            Total Cap
+        <div className="ms-led-display px-2 py-1 text-center min-w-[70px] sm:min-w-[90px]">
+          <div className="text-[9px] uppercase tracking-wider text-red-500/70 font-sans font-bold flex items-center justify-center gap-1">
+            <span>💣 Mines</span>
           </div>
           <div className="text-sm sm:text-lg font-lcd tracking-widest text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-            ${stats.totalMarketCap.toString().padStart(4, '0')}
+            {remainingMines.toString().padStart(3, '0')}
           </div>
         </div>
 
@@ -102,14 +120,14 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
         </button>
       </div>
 
-      {/* 3. RIGHT LCD: Discovered Count & Sound Controls */}
+      {/* 3. RIGHT LCD: Total Market Cap & Controls */}
       <div className="flex items-center gap-2">
         <div className="ms-led-display px-2 py-1 text-center min-w-[70px] sm:min-w-[95px]">
           <div className="text-[9px] uppercase tracking-wider text-red-500/70 font-sans font-bold">
-            Revealed
+            Total Cap
           </div>
           <div className="text-sm sm:text-lg font-lcd tracking-widest text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-            {stats.discoveredCells.toString().padStart(3, '0')}
+            ${stats.totalMarketCap.toString().padStart(4, '0')}
           </div>
         </div>
 
@@ -129,7 +147,7 @@ export const BoardHUD: React.FC<BoardHUDProps> = ({
           {onAutoDiscoverAll && (
             <button
               onClick={() => {
-                sounds.playReveal(4);
+                sounds.playCascade();
                 onAutoDiscoverAll();
               }}
               className="ms-tile-raised p-1 sm:p-1.5 flex items-center justify-center text-gray-800 hover:text-amber-600 transition-colors"
