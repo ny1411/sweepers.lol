@@ -113,7 +113,7 @@ export const Cell: React.FC<CellProps> = ({
       style={{
         animationDelay: `${Math.min(staggerIndex * 20, 300)}ms`,
       }}
-      className={`relative aspect-square w-full select-none cursor-pointer rounded-xs flex flex-col items-center justify-between p-0.5 md:p-1 overflow-hidden transition-all focus:outline-hidden animate-reveal ${
+      className={`relative aspect-square w-full select-none cursor-pointer rounded-xs flex flex-col items-center justify-center p-0.5 md:p-1 overflow-hidden transition-all focus:outline-hidden animate-reveal ${
         isMine && !isClaimed
           ? 'ms-tile-mine-exploded'
           : 'ms-tile-pressed'
@@ -155,16 +155,16 @@ export const Cell: React.FC<CellProps> = ({
 
       {/* Cell Content: Claimed vs Mine vs Special vs Numbers */}
       {isClaimed ? (
-        <div className="w-full h-full flex flex-col items-center justify-between py-0.5">
+        <div className="w-full h-full flex flex-col items-center justify-center gap-0.5 py-0.5">
           {/* Company Logo or Name */}
-          <div className="flex-1 flex items-center justify-center w-full min-h-0">
+          <div className="flex items-center justify-center w-full min-h-0">
             {cell.company?.logo_url && !imageError ? (
-              <div className="relative w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center">
+              <div className="relative w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 flex items-center justify-center">
                 <Image
                   src={cell.company.logo_url}
                   alt={cell.company.name}
-                  width={32}
-                  height={32}
+                  width={28}
+                  height={28}
                   className="max-h-full max-w-full object-contain filter drop-shadow-xs"
                   unoptimized
                   onError={() => setImageError(true)}
@@ -172,7 +172,7 @@ export const Cell: React.FC<CellProps> = ({
               </div>
             ) : (
               <span
-                className="text-[10px] sm:text-xs font-black uppercase tracking-tight px-1 py-0.5 rounded-xs text-white shadow-xs"
+                className="text-[9px] sm:text-[11px] font-black uppercase tracking-tight px-1 py-0.2 rounded-xs text-white shadow-xs"
                 style={{ backgroundColor: cell.company?.brand_color || '#3b82f6' }}
               >
                 {cell.company?.name?.substring(0, 5) || 'CLAIM'}
@@ -181,8 +181,8 @@ export const Cell: React.FC<CellProps> = ({
           </div>
 
           {/* Current Bid Badge */}
-          <div className="w-full text-center">
-            <span className="inline-block bg-neutral-900/90 text-white font-mono font-black text-[10px] sm:text-xs px-1 py-0.2 rounded-xs shadow-xs border border-neutral-700/50">
+          <div className="w-full text-center flex items-center justify-center">
+            <span className="inline-block bg-neutral-900/90 text-white font-mono font-black text-[9px] sm:text-[11px] px-1 py-0.2 rounded-xs shadow-xs border border-neutral-700/50">
               ${cell.current_bid}
             </span>
           </div>
@@ -232,6 +232,14 @@ export const Cell: React.FC<CellProps> = ({
             </span>
           )}
         </div>
+      )}
+
+      {/* Owner Brand Indicator strip */}
+      {isClaimed && cell.company && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-1"
+          style={{ backgroundColor: cell.company.brand_color || '#3b82f6' }}
+        />
       )}
     </button>
   );
