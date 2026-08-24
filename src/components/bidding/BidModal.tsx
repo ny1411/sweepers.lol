@@ -307,9 +307,6 @@ export const BidModal: React.FC<BidModalProps> = ({
             </div>
 
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-neutral-400 text-lg">
-                $
-              </span>
               <input
                 type="number"
                 step="1"
@@ -317,12 +314,12 @@ export const BidModal: React.FC<BidModalProps> = ({
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={minRequiredBid.toString()}
-                className="w-full pl-8 pr-4 py-2.5 bg-neutral-800/80 border border-neutral-700 rounded-xl text-white font-mono font-bold text-lg focus:outline-hidden focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                className="w-full px-4 py-2.5 bg-neutral-800/80 border border-neutral-700 rounded-xl text-white text-center font-mono font-black text-xl focus:outline-hidden focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
               />
             </div>
 
             {/* Suggested Quick Add Buttons */}
-            <div className="flex items-center gap-1.5 mt-2">
+            <div className="flex items-center justify-center gap-1.5 mt-2">
               <span className="text-[10px] uppercase font-bold text-neutral-500 mr-1">
                 Quick Add:
               </span>

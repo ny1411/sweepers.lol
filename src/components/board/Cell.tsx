@@ -233,14 +233,6 @@ export const Cell: React.FC<CellProps> = ({
           )}
         </div>
       )}
-
-      {/* Owner Brand Indicator strip */}
-      {isClaimed && cell.company && (
-        <div
-          className="absolute bottom-0 left-0 right-0 h-1"
-          style={{ backgroundColor: cell.company.brand_color || '#3b82f6' }}
-        />
-      )}
     </button>
   );
 };

@@ -218,10 +218,10 @@ export default function HomePage() {
 
       {/* Header Banner */}
       <header className="w-full border-b border-neutral-800/80 bg-neutral-950/80 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-2.5 select-none">
-            <div className="w-9 h-9 bg-linear-to-br from-amber-400 via-amber-500 to-amber-600 rounded-xl shadow-lg flex items-center justify-center border border-amber-300/40 p-1 overflow-hidden">
+            <div className="w-9 h-9 rounded-xl shadow-lg flex items-center justify-center p-1 overflow-hidden">
               <Image
                 src={special99Img}
                 alt="Sweeper.lol Icon"
@@ -257,18 +257,6 @@ export default function HomePage() {
                 see stats
               </button>
             </div>
-
-            <button
-              onClick={toggleSound}
-              className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer shrink-0"
-              title={isSoundMuted ? 'Unmute Game Sounds' : 'Mute Game Sounds'}
-            >
-              {isSoundMuted ? (
-                <VolumeX className="w-4 h-4 text-red-400" />
-              ) : (
-                <Volume2 className="w-4 h-4 text-emerald-400" />
-              )}
-            </button>
           </div>
         </div>
       </header>
