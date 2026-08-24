@@ -182,7 +182,7 @@ export const Cell: React.FC<CellProps> = ({
 
           {/* Current Bid Badge */}
           <div className="w-full text-center flex items-center justify-center">
-            <span className="inline-block bg-neutral-900/90 text-white font-mono font-black text-[9px] sm:text-[11px] px-1 py-0.2 rounded-xs shadow-xs border border-neutral-700/50">
+            <span className="inline-block text-black font-mono font-black text-[9px] sm:text-[11px] px-1 py-0.2">
               ${cell.current_bid}
             </span>
           </div>
@@ -232,14 +232,6 @@ export const Cell: React.FC<CellProps> = ({
             </span>
           )}
         </div>
-      )}
-
-      {/* Owner Brand Indicator strip */}
-      {isClaimed && cell.company && (
-        <div
-          className="absolute bottom-0 left-0 right-0 h-1"
-          style={{ backgroundColor: cell.company.brand_color || '#3b82f6' }}
-        />
       )}
     </button>
   );
