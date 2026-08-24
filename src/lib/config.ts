@@ -10,14 +10,27 @@ export const GAME_CONFIG = {
   MINIMUM_BID_INCREMENT: 1.0,
   SPECIAL_LOCK_DURATION_HOURS: 168, // 7 days (7 * 24h)
   BASE_VALUES: {
+    '0': 1.0,
     '1': 1.0,
-    '2': 3.0,
-    '3': 5.0,
+    '2': 2.0,
+    '3': 3.0,
+    '4': 4.0,
+    '5': 5.0,
+    '6': 6.0,
+    '7': 7.0,
+    '8': 8.0,
     'SPECIAL': 99.0,
+    'MINE': 10.0,
   } as const,
   POSITION_COLORS: {
+    '0': {
+      text: '#71717a',
+      tailwind: 'text-neutral-500 dark:text-neutral-400',
+      bg: 'bg-neutral-100 dark:bg-neutral-900/40',
+      border: 'border-neutral-400',
+    },
     '1': {
-      text: '#0026ff', // Classic vibrant Minesweeper blue
+      text: '#0000ff', // Classic vibrant Minesweeper blue
       tailwind: 'text-blue-600 dark:text-blue-400',
       bg: 'bg-blue-50 dark:bg-blue-950/40',
       border: 'border-blue-500',
@@ -34,11 +47,47 @@ export const GAME_CONFIG = {
       bg: 'bg-red-50 dark:bg-red-950/40',
       border: 'border-red-500',
     },
+    '4': {
+      text: '#000080', // Classic Navy
+      tailwind: 'text-indigo-700 dark:text-indigo-400',
+      bg: 'bg-indigo-50 dark:bg-indigo-950/40',
+      border: 'border-indigo-500',
+    },
+    '5': {
+      text: '#800000', // Classic Maroon
+      tailwind: 'text-rose-800 dark:text-rose-400',
+      bg: 'bg-rose-50 dark:bg-rose-950/40',
+      border: 'border-rose-500',
+    },
+    '6': {
+      text: '#008080', // Classic Teal
+      tailwind: 'text-teal-600 dark:text-teal-400',
+      bg: 'bg-teal-50 dark:bg-teal-950/40',
+      border: 'border-teal-500',
+    },
+    '7': {
+      text: '#000000', // Classic Black
+      tailwind: 'text-black dark:text-neutral-200',
+      bg: 'bg-neutral-100 dark:bg-neutral-900',
+      border: 'border-neutral-900',
+    },
+    '8': {
+      text: '#808080', // Classic Gray
+      tailwind: 'text-gray-500 dark:text-gray-400',
+      bg: 'bg-gray-100 dark:bg-gray-900',
+      border: 'border-gray-500',
+    },
     'SPECIAL': {
       text: '#eab308', // Glowing gold
       tailwind: 'text-amber-500 dark:text-amber-400',
       bg: 'bg-amber-100 dark:bg-amber-950/60',
       border: 'border-amber-500',
+    },
+    'MINE': {
+      text: '#ef4444',
+      tailwind: 'text-red-500 dark:text-red-400',
+      bg: 'bg-red-100 dark:bg-red-950/80',
+      border: 'border-red-600',
     },
   },
 };

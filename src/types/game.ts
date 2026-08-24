@@ -1,4 +1,4 @@
-export type PositionType = '1' | '2' | '3' | 'SPECIAL';
+export type PositionType = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | 'SPECIAL' | 'MINE';
 
 export interface Company {
   id: string;
@@ -46,6 +46,7 @@ export interface Position {
   position_type: PositionType;
   base_value: number;
   is_special: boolean;
+  is_mine?: boolean;
   created_at?: string;
 }
 
@@ -79,6 +80,9 @@ export interface BoardCell {
   position_index: number;
   is_discovered: boolean;
   is_newly_discovered?: boolean;
+  is_flagged?: boolean;
+  is_mine?: boolean;
+  adjacent_hazards_count?: number;
   position_type?: PositionType;
   base_value?: number;
   is_special?: boolean;
@@ -116,6 +120,9 @@ export interface GameStats {
   totalCells: number;
   discoveredCells: number;
   claimedCells: number;
+  totalMines: number;
+  remainingMines: number;
+  flaggedCount: number;
   totalMarketCap: number;
   activeBidders: number;
   highestBid: number;
