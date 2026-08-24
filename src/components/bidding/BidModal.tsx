@@ -14,6 +14,7 @@ import {
   Globe,
 } from 'lucide-react';
 import Image from 'next/image';
+import special99Img from '@/app/99usd.png';
 
 interface BidModalProps {
   cell: BoardCell | null;
@@ -240,7 +241,14 @@ export const BidModal: React.FC<BidModalProps> = ({
               Position #{cell.position_index}
             </h3>
             {isSpecial ? (
-              <span className="text-[10px] bg-amber-500/20 text-amber-400 font-bold px-2 py-0.5 rounded-full border border-amber-500/40 uppercase tracking-wider">
+              <span className="text-[10px] bg-amber-500/20 text-amber-400 font-bold px-2 py-0.5 rounded-full border border-amber-500/40 uppercase tracking-wider flex items-center gap-1">
+                <Image
+                  src={special99Img}
+                  alt="$99"
+                  width={14}
+                  height={14}
+                  className="w-3.5 h-3.5 object-contain"
+                />
                 Special $99
               </span>
             ) : (

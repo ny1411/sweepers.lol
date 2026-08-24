@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import Image from 'next/image';
+import special99Img from '@/app/99usd.png';
 
 interface DashboardViewProps {
   onSelectPosition: (cell: BoardCell) => void;
@@ -180,7 +181,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectPosition }
                         Position #{cell.position_index}
                       </span>
                       {cell.is_special && (
-                        <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-xs uppercase">
+                        <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-xs uppercase flex items-center gap-1">
+                          <Image
+                            src={special99Img}
+                            alt="$99"
+                            width={12}
+                            height={12}
+                            className="w-3 h-3 object-contain"
+                          />
                           Special $99
                         </span>
                       )}

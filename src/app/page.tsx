@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { sounds } from '@/lib/sound';
 import confetti from 'canvas-confetti';
+import Image from 'next/image';
+import special99Img from '@/app/99usd.png';
 
 function PaymentSuccessHandler({
   onPaymentSuccess,
@@ -219,10 +221,15 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-2.5 select-none">
-            <div className="w-9 h-9 bg-linear-to-br from-amber-400 via-amber-500 to-amber-600 rounded-xl shadow-lg flex items-center justify-center border border-amber-300/40">
-              <span className="font-mono font-black text-neutral-950 text-lg">
-                $
-              </span>
+            <div className="w-9 h-9 bg-linear-to-br from-amber-400 via-amber-500 to-amber-600 rounded-xl shadow-lg flex items-center justify-center border border-amber-300/40 p-1 overflow-hidden">
+              <Image
+                src={special99Img}
+                alt="Sweeper.lol Icon"
+                width={32}
+                height={32}
+                className="w-full h-full object-contain filter drop-shadow-xs"
+                priority
+              />
             </div>
             <div>
               <span className="font-black text-lg sm:text-xl text-white tracking-tight flex items-center gap-1">

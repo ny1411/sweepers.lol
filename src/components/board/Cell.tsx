@@ -4,6 +4,7 @@ import React from 'react';
 import { BoardCell } from '@/types/game';
 import { Lock, Crown } from 'lucide-react';
 import Image from 'next/image';
+import special99Img from '@/app/99usd.png';
 
 interface CellProps {
   cell: BoardCell;
@@ -129,14 +130,17 @@ export const Cell: React.FC<CellProps> = ({
         /* Unclaimed Available Position matching reference image */
         <div className="w-full h-full flex flex-col items-center justify-center">
           {isSpecial ? (
-            /* Special Gold Coin graphic matching reference image */
-            <div className="flex flex-col items-center justify-center animate-gold-coin">
-              <div className="relative w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-linear-to-b from-yellow-300 via-amber-400 to-yellow-600 rounded-full border-2 border-yellow-800 shadow-md flex items-center justify-center">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-yellow-200/80 flex items-center justify-center bg-amber-400/90">
-                  <span className="font-mono font-black text-[9px] sm:text-[10px] text-yellow-950 tracking-tighter">
-                    $99
-                  </span>
-                </div>
+            /* Special $99 Image from 99usd.png */
+            <div className="flex flex-col items-center justify-center w-full h-full p-0.5 animate-gold-coin">
+              <div className="relative w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center">
+                <Image
+                  src={special99Img}
+                  alt="$99 Special Position"
+                  width={36}
+                  height={36}
+                  className="max-h-full max-w-full object-contain filter drop-shadow-md transition-transform group-hover:scale-105"
+                  priority
+                />
               </div>
             </div>
           ) : cell.position_type === '1' ? (
