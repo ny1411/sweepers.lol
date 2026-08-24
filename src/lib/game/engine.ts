@@ -30,35 +30,22 @@ export const DEFAULT_BOARD: Board = {
   is_active: true,
 };
 
-// Generate standard 10x10 positions helper
-export function generateInitialPositions(boardId: string, rows = 10, cols = 10): Position[] {
+// Generate standard 10x10 positions helper with randomized special $99 coin placement
+export function generateInitialPositions(boardId: string, rows = 10, cols = 10, specialRow?: number, specialCol?: number): Position[] {
   const positions: Position[] = [];
+  const sRow = typeof specialRow === 'number' ? specialRow : Math.floor(Math.random() * rows);
+  const sCol = typeof specialCol === 'number' ? specialCol : Math.floor(Math.random() * cols);
+
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const isSpecial = r === 1 && c === 2; // Position #13 ($99 Coin at (1,2))
-      let pType: PositionType = '1';
-      let baseVal = 1.0;
-      if (isSpecial) {
-        pType = 'SPECIAL';
-        baseVal = 99.0;
-      } else if ((r + c) % 3 === 0) {
-        pType = '1';
-        baseVal = 1.0;
-      } else if ((r + c) % 3 === 1) {
-        pType = '2';
-        baseVal = 3.0;
-      } else {
-        pType = '3';
-        baseVal = 5.0;
-      }
-
+      const isSpecial = r === sRow && c === sCol;
       positions.push({
         id: `pos-${boardId}-${r}-${c}`,
         board_id: boardId,
         row: r,
         col: c,
-        position_type: pType,
-        base_value: baseVal,
+        position_type: isSpecial ? 'SPECIAL' : '0',
+        base_value: isSpecial ? 99.0 : 1.0,
         is_special: isSpecial,
       });
     }
@@ -74,13 +61,16 @@ class GameEngineService {
   private bids: Bid[] = [];
   private claims: PositionClaim[] = [];
   private discoveries: Record<string, Set<string>> = {}; // user_id -> Set of position_ids
+  private flags: Record<string, Set<string>> = {}; // user_id -> Set of flagged position_ids
   private notifications: GameNotification[] = [];
   private listeners: Set<(event: { type: string; payload?: unknown }) => void> = new Set();
+  private sessionSeed: number = typeof window !== 'undefined' ? Math.random() : 0.42;
   private isInitialized = false;
   private realtimeChannel: ReturnType<typeof this.supabase.channel> | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
+      this.sessionSeed = Math.random();
       this.init();
     }
   }
@@ -90,6 +80,7 @@ class GameEngineService {
     this.isInitialized = true;
 
     try {
+      this.sessionSeed = Math.random();
       await this.loadAllFromSupabase();
       this.setupRealtimeSubscription();
     } catch (err) {
@@ -154,7 +145,35 @@ class GameEngineService {
       this.refreshBids(),
       this.refreshNotifications(),
     ]);
+    this.ensureRandomSpecialPosition();
     this.notifyListeners('SYNC_STATE');
+  }
+
+  // Ensure randomized special $99 coin position when no claim is currently holding it
+  public ensureRandomSpecialPosition() {
+    const hasSpecialClaim = this.claims.some((c) => {
+      const pos = this.positions.find((p) => p.id === c.position_id);
+      return pos?.is_special;
+    });
+
+    if (!hasSpecialClaim && this.positions.length > 0) {
+      const claimedIds = new Set(this.claims.map((c) => c.position_id));
+      const currentSpecial = this.positions.find((p) => p.is_special);
+
+      // If current special is already claimed or none exists, pick a random unclaimed position
+      if (!currentSpecial || claimedIds.has(currentSpecial.id)) {
+        const unclaimed = this.positions.filter((p) => !claimedIds.has(p.id));
+        if (unclaimed.length > 0) {
+          this.positions.forEach((p) => {
+            p.is_special = false;
+          });
+          const randPos = unclaimed[Math.floor(Math.random() * unclaimed.length)];
+          randPos.is_special = true;
+          randPos.position_type = 'SPECIAL';
+          randPos.base_value = 99.0;
+        }
+      }
+    }
   }
 
   public async refreshCompanies(): Promise<Company[]> {
@@ -207,11 +226,13 @@ class GameEngineService {
         // Fallback positions matching 10x10 if database is not yet seeded
         this.positions = generateInitialPositions(activeBoardId);
       }
+      this.ensureRandomSpecialPosition();
     } catch (err) {
       console.error('Error fetching board positions from Supabase:', err);
       if (this.positions.length === 0) {
         this.positions = generateInitialPositions(DEFAULT_BOARD_ID);
       }
+      this.ensureRandomSpecialPosition();
     }
   }
 
@@ -340,49 +361,307 @@ class GameEngineService {
     return this.boards;
   }
 
-  // Progressive Minesweeper Cell Discovery (Fog of War)
-  public revealCells(boardId: string, centerRow: number, centerCol: number, userId: string): BoardCell[] {
+  private pseudoHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  private activeMineIds: Set<string> | null = null;
+
+  // Dynamic 15-hazard balance: (claims + mines >= 15).
+  // If claims = 0 -> 15 mines. If claims = 5 -> 10 mines. If claims >= 15 -> 0 mines.
+  // Randomly scattered across the board with uniform distribution (no chaining).
+  public getActiveMinePositionIds(boardId?: string): Set<string> {
     const board = this.getBoard(boardId);
-    const radius = board.reveal_radius ?? 1;
+    let boardPositions = this.positions.filter((p) => p.board_id === board.id);
+    if (boardPositions.length === 0) {
+      boardPositions = this.positions;
+    }
+
+    const claimedPosIds = new Set(this.claims.map((c) => c.position_id));
+    const claimedCount = boardPositions.filter((p) => claimedPosIds.has(p.id)).length;
+    const targetMines = Math.max(0, 15 - claimedCount);
+
+    if (targetMines === 0) {
+      this.activeMineIds = new Set();
+      return this.activeMineIds;
+    }
+
+    // Return cached random mines if still valid and matching target count
+    if (this.activeMineIds && this.activeMineIds.size === targetMines) {
+      // Ensure none of the cached mines are now claimed
+      const hasConflict = Array.from(this.activeMineIds).some((id) => claimedPosIds.has(id));
+      if (!hasConflict) {
+        return this.activeMineIds;
+      }
+    }
+
+    const specialPos = boardPositions.find((p) => p.is_special);
+
+    // Candidates: all unclaimed positions that are not the special $99 position
+    const candidates = boardPositions.filter(
+      (p) => !claimedPosIds.has(p.id) && p.id !== specialPos?.id
+    );
+
+    // True Fisher-Yates random shuffle across the whole grid
+    const shuffled = [...candidates];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+
+    this.activeMineIds = new Set(shuffled.slice(0, targetMines).map((p) => p.id));
+    return this.activeMineIds;
+  }
+
+  // Calculate dynamic Minesweeper adjacent hazard count and base value
+  public calculateBaseValue(pos: Position): {
+    baseValue: number;
+    positionType: PositionType;
+    isMine: boolean;
+    adjacentHazardsCount: number;
+  } {
+    if (pos.is_special) {
+      return {
+        baseValue: 99.0,
+        positionType: 'SPECIAL',
+        isMine: false,
+        adjacentHazardsCount: 0,
+      };
+    }
+
+    const activeMines = this.getActiveMinePositionIds(pos.board_id);
+    const isMine = activeMines.has(pos.id);
+
+    if (isMine) {
+      return {
+        baseValue: 10.0, // Fixed $10 base value for active mines as requested
+        positionType: 'MINE',
+        isMine: true,
+        adjacentHazardsCount: 0,
+      };
+    }
+
+    // Count 8 neighbor hazards (active mines + claimed companies)
+    let adjacentHazardsCount = 0;
+    const claimedPosIds = new Set(this.claims.map((c) => c.position_id));
+
+    let boardPositions = this.positions.filter((p) => p.board_id === pos.board_id);
+    if (boardPositions.length === 0) {
+      boardPositions = this.positions;
+    }
+
+    for (const other of boardPositions) {
+      if (other.id === pos.id) continue;
+      const rowDiff = Math.abs(other.row - pos.row);
+      const colDiff = Math.abs(other.col - pos.col);
+
+      if (rowDiff <= 1 && colDiff <= 1) {
+        const isNeighborHazard = activeMines.has(other.id) || claimedPosIds.has(other.id);
+        if (isNeighborHazard) {
+          adjacentHazardsCount++;
+        }
+      }
+    }
+
+    const pType = String(Math.min(adjacentHazardsCount, 8)) as PositionType;
+    const baseValue = adjacentHazardsCount === 0 ? 1.0 : Math.max(1.0, adjacentHazardsCount);
+
+    return {
+      baseValue,
+      positionType: pType,
+      isMine: false,
+      adjacentHazardsCount,
+    };
+  }
+
+  private getCellState(pos: Position, isDiscovered: boolean, userId?: string): BoardCell {
+    const claim = this.claims.find((c) => c.position_id === pos.id);
+    const company = claim ? (claim.company || this.companies.find((c) => c.id === claim.company_id)) : null;
+    const positionBids = this.bids.filter((b) => b.position_id === pos.id);
+
+    const isLocked = Boolean(
+      claim?.lock_until && new Date(claim.lock_until).getTime() > Date.now()
+    );
+
+    const dynamic = this.calculateBaseValue(pos);
+    const userFlags = userId && this.flags[userId] ? this.flags[userId] : new Set();
+    const isFlagged = !isDiscovered && userFlags.has(pos.id);
+
+    return {
+      id: pos.id,
+      row: pos.row,
+      col: pos.col,
+      position_index: pos.row * 10 + pos.col + 1,
+      is_discovered: isDiscovered,
+      is_flagged: isFlagged,
+      is_mine: isDiscovered ? dynamic.isMine : undefined,
+      adjacent_hazards_count: isDiscovered ? dynamic.adjacentHazardsCount : undefined,
+      position_type: isDiscovered ? (pos.is_special ? 'SPECIAL' : dynamic.positionType) : undefined,
+      base_value: isDiscovered ? (pos.is_special ? 99.0 : dynamic.baseValue) : undefined,
+      is_special: isDiscovered ? pos.is_special : undefined,
+      current_bid: isDiscovered && claim ? claim.current_bid : undefined,
+      claim: isDiscovered && claim ? { ...claim, company: company || undefined } : null,
+      company: isDiscovered ? company : null,
+      lock_until: isDiscovered ? claim?.lock_until : null,
+      is_locked: isDiscovered ? isLocked : false,
+      bid_count: isDiscovered ? positionBids.length : 0,
+    };
+  }
+
+  // Progressive Minesweeper Cell Discovery with Cascade Flood-Fill for 0-hazard tiles
+  public revealCells(boardId: string, centerRow: number, centerCol: number, userId: string): {
+    newlyDiscovered: BoardCell[];
+    hitMine: boolean;
+    hitSpecial: boolean;
+  } {
+    const board = this.getBoard(boardId);
+    let boardPositions = this.positions.filter((p) => p.board_id === board.id);
+    if (boardPositions.length === 0) {
+      boardPositions = this.positions;
+    }
 
     if (!this.discoveries[userId]) {
       this.discoveries[userId] = new Set();
     }
     const userDiscoveries = this.discoveries[userId];
+    const userFlags = this.flags[userId] || new Set();
 
-    const newlyDiscovered: BoardCell[] = [];
+    const clickedPos = boardPositions.find((p) => p.row === centerRow && p.col === centerCol);
+    if (!clickedPos) {
+      return { newlyDiscovered: [], hitMine: false, hitSpecial: false };
+    }
 
-    this.positions
-      .filter((p) => p.board_id === board.id || !p.board_id)
-      .forEach((pos) => {
-        const rowDiff = Math.abs(pos.row - centerRow);
-        const colDiff = Math.abs(pos.col - centerCol);
+    // Unflag if user uncovers this cell
+    if (userFlags.has(clickedPos.id)) {
+      userFlags.delete(clickedPos.id);
+    }
 
-        let inRange = false;
-        if (board.reveal_diagonals) {
-          inRange = rowDiff <= radius && colDiff <= radius;
-        } else {
-          inRange = rowDiff + colDiff <= radius;
+    const dynamicClicked = this.calculateBaseValue(clickedPos);
+    const hitMine = dynamicClicked.isMine;
+    const hitSpecial = Boolean(clickedPos.is_special);
+
+    const newlyDiscoveredIds = new Set<string>();
+
+    if (hitMine || hitSpecial || dynamicClicked.adjacentHazardsCount > 0) {
+      // Direct reveal of single tile
+      if (!userDiscoveries.has(clickedPos.id)) {
+        userDiscoveries.add(clickedPos.id);
+        newlyDiscoveredIds.add(clickedPos.id);
+      }
+    } else {
+      // BFS Cascade Flood-Fill for 0-hazard tiles
+      const queue: Position[] = [clickedPos];
+      userDiscoveries.add(clickedPos.id);
+      newlyDiscoveredIds.add(clickedPos.id);
+
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        const currDynamic = this.calculateBaseValue(curr);
+
+        if (currDynamic.adjacentHazardsCount === 0 && !currDynamic.isMine && !curr.is_special) {
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nRow = curr.row + dr;
+              const nCol = curr.col + dc;
+
+              const neighbor = boardPositions.find((p) => p.row === nRow && p.col === nCol);
+              if (neighbor && !userDiscoveries.has(neighbor.id)) {
+                userDiscoveries.add(neighbor.id);
+                newlyDiscoveredIds.add(neighbor.id);
+                userFlags.delete(neighbor.id);
+
+                const nDynamic = this.calculateBaseValue(neighbor);
+                if (nDynamic.adjacentHazardsCount === 0 && !nDynamic.isMine && !neighbor.is_special) {
+                  queue.push(neighbor);
+                }
+              }
+            }
+          }
         }
+      }
+    }
 
-        if (inRange) {
-          userDiscoveries.add(pos.id);
-          const cell = this.getCellState(pos, true);
-          newlyDiscovered.push({ ...cell, is_newly_discovered: true });
-        }
-      });
+    const newlyDiscoveredCells: BoardCell[] = [];
+    newlyDiscoveredIds.forEach((id) => {
+      const pos = boardPositions.find((p) => p.id === id);
+      if (pos) {
+        newlyDiscoveredCells.push({
+          ...this.getCellState(pos, true, userId),
+          is_newly_discovered: true,
+        });
+      }
+    });
 
-    this.notifyListeners('CELLS_REVEALED', { newlyDiscovered });
-    return newlyDiscovered;
+    this.notifyListeners('CELLS_REVEALED', {
+      newlyDiscovered: newlyDiscoveredCells,
+      hitMine,
+      hitSpecial,
+    });
+
+    return {
+      newlyDiscovered: newlyDiscoveredCells,
+      hitMine,
+      hitSpecial,
+    };
   }
 
-  // Reset Fog of War discoveries for a user
+  // Toggle flag on an unrevealed cell
+  public toggleFlag(boardId: string, row: number, col: number, userId: string): boolean {
+    const board = this.getBoard(boardId);
+    let boardPositions = this.positions.filter((p) => p.board_id === board.id);
+    if (boardPositions.length === 0) {
+      boardPositions = this.positions;
+    }
+
+    const targetPos = boardPositions.find((p) => p.row === row && p.col === col);
+    if (!targetPos) return false;
+
+    const userDiscoveries = this.discoveries[userId] || new Set();
+    if (userDiscoveries.has(targetPos.id)) {
+      return false; // Cannot flag revealed cell
+    }
+
+    if (!this.flags[userId]) {
+      this.flags[userId] = new Set();
+    }
+
+    let isFlagged = false;
+    if (this.flags[userId].has(targetPos.id)) {
+      this.flags[userId].delete(targetPos.id);
+      isFlagged = false;
+    } else {
+      this.flags[userId].add(targetPos.id);
+      isFlagged = true;
+    }
+
+    this.notifyListeners('FLAG_TOGGLED', { positionId: targetPos.id, isFlagged });
+    return isFlagged;
+  }
+
+  public getFlaggedPositions(userId: string): Set<string> {
+    return this.flags[userId] || new Set();
+  }
+
+  // Reset Fog of War discoveries and flags for a user
   public resetDiscoveries(userId?: string) {
     if (userId) {
       delete this.discoveries[userId];
+      delete this.flags[userId];
     } else {
       this.discoveries = {};
+      this.flags = {};
     }
+    this.sessionSeed = Math.random();
+    this.activeMineIds = null;
+    this.ensureRandomSpecialPosition();
     this.notifyListeners('CELLS_REVEALED', { newlyDiscovered: [] });
   }
 
@@ -398,66 +677,8 @@ class GameEngineService {
 
     return boardPositions.map((pos) => {
       const isDiscovered = userDiscoveries.has(pos.id);
-      return this.getCellState(pos, isDiscovered);
+      return this.getCellState(pos, isDiscovered, userId);
     });
-  }
-
-  // Calculate dynamic Minesweeper base value: $1 if 0 neighbors, $3 if 1 neighbor, $5 if 2+ neighbors
-  public calculateBaseValue(pos: Position): { baseValue: number; positionType: PositionType } {
-    if (pos.is_special) {
-      return { baseValue: 99.0, positionType: 'SPECIAL' };
-    }
-
-    // Count adjacent claimed positions (8 neighbors: dx in [-1,0,1], dy in [-1,0,1], excluding pos itself)
-    let adjacentClaimsCount = 0;
-    for (const claim of this.claims) {
-      const claimedPos = this.positions.find((p) => p.id === claim.position_id);
-      if (!claimedPos) continue;
-      if (claimedPos.row === pos.row && claimedPos.col === pos.col) continue;
-
-      const rowDiff = Math.abs(claimedPos.row - pos.row);
-      const colDiff = Math.abs(claimedPos.col - pos.col);
-      if (rowDiff <= 1 && colDiff <= 1) {
-        adjacentClaimsCount++;
-      }
-    }
-
-    if (adjacentClaimsCount === 0) {
-      return { baseValue: 1.0, positionType: '1' };
-    } else if (adjacentClaimsCount === 1) {
-      return { baseValue: 3.0, positionType: '2' };
-    } else {
-      return { baseValue: 5.0, positionType: '3' };
-    }
-  }
-
-  private getCellState(pos: Position, isDiscovered: boolean): BoardCell {
-    const claim = this.claims.find((c) => c.position_id === pos.id);
-    const company = claim ? (claim.company || this.companies.find((c) => c.id === claim.company_id)) : null;
-    const positionBids = this.bids.filter((b) => b.position_id === pos.id);
-
-    const isLocked = Boolean(
-      claim?.lock_until && new Date(claim.lock_until).getTime() > Date.now()
-    );
-
-    const dynamic = this.calculateBaseValue(pos);
-
-    return {
-      id: pos.id,
-      row: pos.row,
-      col: pos.col,
-      position_index: pos.row * 10 + pos.col + 1,
-      is_discovered: isDiscovered,
-      position_type: isDiscovered ? (pos.is_special ? 'SPECIAL' : dynamic.positionType) : undefined,
-      base_value: isDiscovered ? (pos.is_special ? 99.0 : dynamic.baseValue) : undefined,
-      is_special: isDiscovered ? pos.is_special : undefined,
-      current_bid: isDiscovered && claim ? claim.current_bid : undefined,
-      claim: isDiscovered && claim ? { ...claim, company: company || undefined } : null,
-      company: isDiscovered ? company : null,
-      lock_until: isDiscovered ? claim?.lock_until : null,
-      is_locked: isDiscovered ? isLocked : false,
-      bid_count: isDiscovered ? positionBids.length : 0,
-    };
   }
 
   // ATOMIC PLACE BID FUNCTION VIA SUPABASE RPC
@@ -710,6 +931,7 @@ class GameEngineService {
     }
 
     const userDiscoveries = this.discoveries[userId] || new Set();
+    const userFlags = this.flags[userId] || new Set();
     const activeClaims = this.claims.filter((c) =>
       boardPositions.some((p) => p.id === c.position_id)
     );
@@ -723,10 +945,17 @@ class GameEngineService {
       specialClaim?.lock_until && new Date(specialClaim.lock_until).getTime() > Date.now()
     );
 
+    const activeMines = this.getActiveMinePositionIds(board.id);
+    const totalMines = activeMines.size;
+    const remainingMines = Math.max(0, totalMines - userFlags.size);
+
     return {
       totalCells: boardPositions.length || 100,
       discoveredCells: userDiscoveries.size,
       claimedCells: activeClaims.length,
+      totalMines,
+      remainingMines,
+      flaggedCount: userFlags.size,
       totalMarketCap,
       activeBidders: uniqueBidders,
       highestBid,
