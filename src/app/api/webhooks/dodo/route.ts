@@ -5,10 +5,10 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    const webhookHeaders = {
-      'webhook-id': req.headers.get('webhook-id') || '',
-      'webhook-signature': req.headers.get('webhook-signature') || '',
-      'webhook-timestamp': req.headers.get('webhook-timestamp') || '',
+    const webhookHeaders: Record<string, string> = {
+      'webhook-id': req.headers.get('webhook-id') || req.headers.get('svix-id') || '',
+      'webhook-signature': req.headers.get('webhook-signature') || req.headers.get('svix-signature') || '',
+      'webhook-timestamp': req.headers.get('webhook-timestamp') || req.headers.get('svix-timestamp') || '',
     };
 
     let event;
@@ -28,12 +28,11 @@ export async function POST(req: NextRequest) {
     console.log(`[Dodo Webhook] Received event: ${eventType}`, eventData);
 
     const supabase = await createServerSupabaseClient();
+    const paymentId = (eventData.payment_id as string) || '';
+    const sessionId = (eventData.checkout_session_id as string) || '';
+    const metadata = (eventData.metadata as Record<string, string>) || {};
 
     if (eventType === 'payment.succeeded') {
-      const paymentId = (eventData.payment_id as string) || '';
-      const sessionId = (eventData.checkout_session_id as string) || '';
-      const metadata = (eventData.metadata as Record<string, string>) || {};
-
       const positionId = metadata.position_id;
       const companyName = metadata.company_name;
       const website = metadata.website;
@@ -50,7 +49,7 @@ export async function POST(req: NextRequest) {
           .from('payments')
           .select('id, status')
           .eq('payment_id', paymentId)
-          .single();
+          .maybeSingle();
 
         if (existingPayment && existingPayment.status === 'succeeded') {
           console.log(`[Dodo Webhook] Payment ${paymentId} already processed (idempotent)`);
@@ -67,7 +66,7 @@ export async function POST(req: NextRequest) {
           .from('companies')
           .select('id')
           .ilike('name', companyName)
-          .single();
+          .maybeSingle();
 
         if (existingCompany) {
           companyId = existingCompany.id;
@@ -133,6 +132,14 @@ export async function POST(req: NextRequest) {
           },
           { onConflict: 'payment_id' }
         );
+      }
+    } else if (eventType === 'payment.failed' || eventType === 'payment.cancelled') {
+      if (paymentId || sessionId) {
+        await supabase.from('payments').update({
+          status: eventType === 'payment.failed' ? 'failed' : 'cancelled',
+          raw_event: eventData,
+          updated_at: new Date().toISOString(),
+        }).or(`payment_id.eq.${paymentId},checkout_session_id.eq.${sessionId}`);
       }
     }
 

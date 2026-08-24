@@ -29,14 +29,30 @@ function PaymentSuccessHandler({
 
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
-    const sessionId = urlParams.get('session_id');
+    const rawSessionId = urlParams.get('session_id');
+    const paymentId = urlParams.get('payment_id');
+    const paymentStatus = urlParams.get('status');
     const positionId = urlParams.get('position_id');
-    const positionIndex = urlParams.get('position_index');
     const amount = urlParams.get('amount');
 
-    if (paymentSuccess === 'true' && sessionId) {
+    const cleanSessionId = rawSessionId && rawSessionId !== '{CHECKOUT_SESSION_ID}' ? rawSessionId : '';
+    const cleanPaymentId = paymentId && paymentId !== '{PAYMENT_ID}' ? paymentId : '';
+
+    const isSuccessRedirect =
+      paymentSuccess === 'true' ||
+      paymentStatus === 'succeeded' ||
+      Boolean(cleanPaymentId) ||
+      Boolean(cleanSessionId);
+
+    if (isSuccessRedirect) {
+      const verifyParams = new URLSearchParams();
+      if (cleanPaymentId) verifyParams.set('payment_id', cleanPaymentId);
+      if (cleanSessionId) verifyParams.set('session_id', cleanSessionId);
+      if (positionId) verifyParams.set('position_id', positionId);
+      if (amount) verifyParams.set('amount', amount);
+
       // 1. Verify with backend
-      fetch(`/api/payments/verify?session_id=${encodeURIComponent(sessionId)}`)
+      fetch(`/api/payments/verify?${verifyParams.toString()}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.verified) {
@@ -53,15 +69,17 @@ function PaymentSuccessHandler({
 
             // Also ensure gameEngine reflects this in memory / real-time
             if (meta.position_id && meta.company_name) {
-              gameEngine.placeBidWithDetails({
-                positionId: meta.position_id,
-                amount: parseFloat(bidAmount) || 1,
-                name: meta.company_name,
-                website: meta.website,
-                description: meta.description,
-                logoUrl: meta.logo_url,
-                brandColor: meta.brand_color,
-              }).catch(() => {});
+              gameEngine
+                .placeBidWithDetails({
+                  positionId: meta.position_id,
+                  amount: parseFloat(bidAmount) || 1,
+                  name: meta.company_name,
+                  website: meta.website,
+                  description: meta.description,
+                  logoUrl: meta.logo_url,
+                  brandColor: meta.brand_color,
+                })
+                .catch(() => {});
             }
 
             onPaymentSuccess({

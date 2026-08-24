@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine host return URL
+    // Determine host return URL (Dodo Payments appends payment_id=...&status=... automatically on redirect)
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const returnUrl = `${origin}/?payment_success=true&session_id={CHECKOUT_SESSION_ID}&position_id=${encodeURIComponent(
+    const returnUrl = `${origin}/?payment_success=true&position_id=${encodeURIComponent(
       positionId
     )}&position_index=${positionIndex || 0}&amount=${encodeURIComponent(numAmount)}`;
 
@@ -71,11 +71,12 @@ export async function POST(req: NextRequest) {
       returnUrl,
     });
 
-    // Optionally log pending checkout into Supabase
+    // Log pending checkout into Supabase
     try {
       const supabase = await createServerSupabaseClient();
       await supabase.from('payments').insert({
         checkout_session_id: session.sessionId,
+        position_id: positionId,
         amount: numAmount,
         currency: 'USD',
         status: 'pending',
@@ -84,14 +85,16 @@ export async function POST(req: NextRequest) {
         metadata: {
           position_id: positionId,
           position_index: positionIndex,
+          company_name: companyName.trim(),
+          amount: numAmount.toFixed(2),
           website,
           description,
           logo_url: logoUrl,
           brand_color: brandColor,
         },
       });
-    } catch {
-      // Continue even if database logging encounters issues
+    } catch (dbErr) {
+      console.warn('Could not insert pending payment in Supabase:', dbErr);
     }
 
     return NextResponse.json({
