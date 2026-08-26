@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BoardCell } from '@/types/game';
-import { formatCurrency } from '@/lib/config';
+import { formatCurrency, formatExternalUrl, getDisplayUrl, normalizeWebsiteUrl } from '@/lib/config';
 import { sounds } from '@/lib/sound';
 import {
   X,
@@ -12,6 +12,7 @@ import {
   CreditCard,
   Loader2,
   Globe,
+  ExternalLink,
 } from 'lucide-react';
 import Image from 'next/image';
 import special99Img from '@/app/99usd.png';
@@ -169,13 +170,14 @@ export const BidModal: React.FC<BidModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const normalizedWeb = normalizeWebsiteUrl(websiteUrl);
       // 1. Persist profile locally for future bids
       try {
         localStorage.setItem(
           'sweeper_bidder_profile',
           JSON.stringify({
             name: finalCompanyName,
-            website: websiteUrl.trim(),
+            website: normalizedWeb || websiteUrl.trim(),
             description: description.trim(),
             logo: extractedLogo,
             brandColor: extractedBrandColor,
@@ -196,7 +198,7 @@ export const BidModal: React.FC<BidModalProps> = ({
           positionIndex: cell.position_index,
           amount: amountNum,
           companyName: finalCompanyName,
-          website: websiteUrl.trim() || undefined,
+          website: normalizedWeb || undefined,
           description: description.trim() || undefined,
           logoUrl: extractedLogo || undefined,
           brandColor: extractedBrandColor || undefined,
@@ -280,6 +282,57 @@ export const BidModal: React.FC<BidModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handlePlaceBid} className="p-5 flex flex-col gap-4">
+          {/* Current Owner Banner if Claimed */}
+          {cell.claim && cell.company && (
+            <div className="bg-neutral-800/50 border border-neutral-700/80 rounded-xl p-2.5 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                {cell.company.logo_url ? (
+                  <div className="w-7 h-7 relative rounded-lg bg-neutral-900 border border-neutral-700 p-0.5 flex items-center justify-center shrink-0">
+                    <Image
+                      src={cell.company.logo_url}
+                      alt={cell.company.name}
+                      width={22}
+                      height={22}
+                      className="max-h-full max-w-full object-contain"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                    style={{ backgroundColor: cell.company.brand_color || '#3b82f6' }}
+                  >
+                    {cell.company.name[0]}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="text-[9px] uppercase font-bold text-neutral-400">Current Owner</div>
+                  <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                    <span>{cell.company.name}</span>
+                    {cell.company.website && (
+                      <a
+                        href={formatExternalUrl(cell.company.website)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline inline-flex items-center gap-0.5"
+                        title={formatExternalUrl(cell.company.website)}
+                      >
+                        <Globe className="w-2.5 h-2.5 shrink-0" />
+                        <span className="truncate">{getDisplayUrl(cell.company.website)}</span>
+                        <ExternalLink className="w-2 h-2 shrink-0" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-[9px] text-neutral-400 block font-mono">Current Bid</span>
+                <span className="text-xs font-mono font-bold text-amber-400">${cell.current_bid}</span>
+              </div>
+            </div>
+          )}
+
           {/* Feedback Messages */}
           {errorMessage && (
             <div className="p-3 bg-red-950/40 border border-red-500/50 rounded-xl flex items-start gap-2 text-xs text-red-200">

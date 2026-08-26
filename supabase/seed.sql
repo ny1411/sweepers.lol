@@ -10,7 +10,7 @@ INSERT INTO public.companies (id, name, slug, logo_url, website, description, br
 ('33333333-3333-3333-3333-333333333333', 'Microsoft', 'microsoft', 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg', 'https://microsoft.com', 'Software and enterprise cloud leader.', '#00A4EF'),
 ('44444444-4444-4444-4444-444444444444', 'NVIDIA', 'nvidia', 'https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg', 'https://nvidia.com', 'Accelerated computing & AI chips.', '#76B900'),
 ('55555555-5555-5555-5555-555555555555', 'Tesla', 'tesla', 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg', 'https://tesla.com', 'Electric vehicles and clean energy.', '#E82127'),
-('66666666-6666-6666-6666-666666666666', 'Sweeper Labs', 'sweeper-labs', 'https://api.dicebear.com/7.x/bottts/svg?seed=SweeperLabs', 'https://sweeper.lol', 'The pioneer guild of grid auction strategists.', '#8B5CF6')
+('66666666-6666-6666-6666-666666666666', 'Sweeper Labs', 'sweeper-labs', 'https://api.dicebear.com/7.x/bottts/svg?seed=SweeperLabs', 'https://sweepers.lol', 'The pioneer guild of grid auction strategists.', '#8B5CF6')
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. SEED ACTIVE 10x10 BOARD

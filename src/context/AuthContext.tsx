@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Company, Profile } from '@/types/game';
 import { gameEngine } from '@/lib/game/engine';
+import { normalizeWebsiteUrl } from '@/lib/config';
 
 interface AuthContextType {
   currentUser: Profile | null;
@@ -111,11 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logoUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(data.name)}`;
     }
 
+    const normalizedWeb = normalizeWebsiteUrl(data.website);
+
     const newCompany = await gameEngine.addCompany({
       name: data.name.trim(),
       slug,
       logo_url: logoUrl,
-      website: data.website || null,
+      website: normalizedWeb,
       description: data.description || null,
       brand_color: data.brand_color || '#3B82F6',
     });

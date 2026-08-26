@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { BoardCell, GameNotification } from '@/types/game';
 import { gameEngine, DEFAULT_BOARD } from '@/lib/game/engine';
-import { formatCurrency, formatRelativeTime } from '@/lib/config';
+import { formatCurrency, formatRelativeTime, formatExternalUrl, getDisplayUrl } from '@/lib/config';
 import {
   Building2,
   Trophy,
@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Zap,
   ArrowRight,
+  Globe,
 } from 'lucide-react';
 import Image from 'next/image';
 import special99Img from '@/app/99usd.png';
@@ -109,13 +110,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectPosition }
               </p>
               {currentCompany.website && (
                 <a
-                  href={currentCompany.website}
+                  href={formatExternalUrl(currentCompany.website)}
                   target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-blue-400 hover:underline flex items-center gap-1 mt-1.5"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 mt-1.5"
+                  title={formatExternalUrl(currentCompany.website)}
                 >
-                  <span>{currentCompany.website}</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <Globe className="w-3 h-3 shrink-0" />
+                  <span>{getDisplayUrl(currentCompany.website)}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
                 </a>
               )}
             </div>

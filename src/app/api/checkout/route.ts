@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createBidCheckoutSession, isDodoConfigured } from '@/lib/payments/dodo';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { normalizeWebsiteUrl } from '@/lib/config';
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,13 +58,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedWebsite = normalizeWebsiteUrl(website);
+
     // Create Dodo Payments Checkout Session
     const session = await createBidCheckoutSession({
       positionId,
       positionIndex: Number(positionIndex) || 0,
       amount: numAmount,
       companyName: companyName.trim(),
-      website: website || null,
+      website: normalizedWebsite,
       description: description || null,
       logoUrl: logoUrl || null,
       brandColor: brandColor || null,
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
           position_index: positionIndex,
           company_name: companyName.trim(),
           amount: numAmount.toFixed(2),
-          website,
+          website: normalizedWebsite,
           description,
           logo_url: logoUrl,
           brand_color: brandColor,

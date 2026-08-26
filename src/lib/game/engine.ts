@@ -10,7 +10,7 @@ import {
   GameStats,
   PositionType,
 } from '@/types/game';
-import { GAME_CONFIG } from '@/lib/config';
+import { GAME_CONFIG, normalizeWebsiteUrl } from '@/lib/config';
 import { createClient, isRealSupabaseConfigured } from '@/lib/supabase/client';
 
 export const DEFAULT_BOARD_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -322,13 +322,14 @@ class GameEngineService {
   public async addCompany(company: Omit<Company, 'id'>): Promise<Company> {
     try {
       const slug = company.slug || company.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const normalizedWeb = normalizeWebsiteUrl(company.website);
       const { data, error } = await this.supabase
         .from('companies')
         .insert({
           name: company.name,
           slug,
           logo_url: company.logo_url || null,
-          website: company.website || null,
+          website: normalizedWeb || null,
           description: company.description || null,
           brand_color: company.brand_color || '#3B82F6',
         })
@@ -744,10 +745,7 @@ class GameEngineService {
     }
 
     // Format website URL
-    let formattedWebsite = website?.trim() || null;
-    if (formattedWebsite && !/^https?:\/\//i.test(formattedWebsite)) {
-      formattedWebsite = `https://${formattedWebsite}`;
-    }
+    const formattedWebsite = normalizeWebsiteUrl(website);
 
     // Determine fallback or extracted logo
     let finalLogoUrl = logoUrl?.trim() || null;

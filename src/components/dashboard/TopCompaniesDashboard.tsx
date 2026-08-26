@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { LeaderboardEntry } from '@/types/game';
 import { gameEngine } from '@/lib/game/engine';
-import { formatCurrency } from '@/lib/config';
+import { formatCurrency, formatExternalUrl, getDisplayUrl } from '@/lib/config';
 import { Trophy, Crown, ExternalLink, Globe, Sparkles, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
 
@@ -213,16 +213,16 @@ export const TopCompaniesDashboard: React.FC<TopCompaniesDashboardProps> = ({
                   {/* Website Link */}
                   {entry.company.website ? (
                     <a
-                      href={entry.company.website}
+                      href={formatExternalUrl(entry.company.website)}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-1 truncate max-w-full mt-0.5"
-                      title={entry.company.website}
+                      title={formatExternalUrl(entry.company.website)}
                     >
                       <Globe className="w-2.5 h-2.5 shrink-0" />
                       <span className="truncate">
-                        {entry.company.website.replace(/^https?:\/\//, '')}
+                        {getDisplayUrl(entry.company.website)}
                       </span>
                       <ExternalLink className="w-2 h-2 shrink-0" />
                     </a>

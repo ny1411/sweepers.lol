@@ -154,3 +154,67 @@ export function formatRelativeTime(dateStr: string): string {
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
 }
+
+/**
+ * Normalizes user-submitted website input by trimming and ensuring https:// protocol.
+ */
+export function normalizeWebsiteUrl(url?: string | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+/**
+ * Formats an external website URL to ensure it has a valid protocol (https://)
+ * and appends ?utm_source=sweepers.lol for marketing & attribution analytics.
+ *
+ * Examples:
+ * - "apple.com" -> "https://apple.com/?utm_source=sweepers.lol"
+ * - "https://google.com" -> "https://google.com/?utm_source=sweepers.lol"
+ * - "https://site.org/demo?test=1" -> "https://site.org/demo?test=1&utm_source=sweepers.lol"
+ */
+export function formatExternalUrl(url?: string | null): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(withScheme);
+    parsed.searchParams.set('utm_source', 'sweepers.lol');
+    return parsed.toString();
+  } catch {
+    const [baseAndQuery, hash] = withScheme.split('#');
+    const separator = baseAndQuery.includes('?') ? '&' : '?';
+    const utmAdded = `${baseAndQuery}${separator}utm_source=sweepers.lol`;
+    return hash ? `${utmAdded}#${hash}` : utmAdded;
+  }
+}
+
+/**
+ * Returns a clean, human-readable display string of a URL for badges and UI labels.
+ * Strips http://, https://, www., trailing slash, and search/hash parameters.
+ */
+export function getDisplayUrl(url?: string | null): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const parsed = new URL(withScheme);
+    const domain = parsed.hostname.replace(/^www\./i, '');
+    const pathname = parsed.pathname !== '/' ? parsed.pathname : '';
+    return `${domain}${pathname}`.replace(/\/$/, '');
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .split('?')[0]
+      .split('#')[0]
+      .replace(/\/$/, '');
+  }
+}
+

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAndUnwrapWebhook } from '@/lib/payments/dodo';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { normalizeWebsiteUrl } from '@/lib/config';
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (eventType === 'payment.succeeded') {
       const positionId = metadata.position_id;
       const companyName = metadata.company_name;
-      const website = metadata.website;
+      const website = normalizeWebsiteUrl(metadata.website);
       const description = metadata.description;
       const logoUrl = metadata.logo_url;
       const brandColor = metadata.brand_color;

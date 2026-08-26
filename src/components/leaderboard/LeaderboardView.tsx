@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { LeaderboardEntry, BoardCell } from '@/types/game';
 import { gameEngine } from '@/lib/game/engine';
-import { formatCurrency } from '@/lib/config';
-import { Trophy, Crown, Building2, TrendingUp, Layers, Award } from 'lucide-react';
+import { formatCurrency, formatExternalUrl, getDisplayUrl } from '@/lib/config';
+import { Trophy, Crown, Building2, TrendingUp, Layers, Award, Globe, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 
 interface LeaderboardViewProps {
@@ -133,6 +133,26 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                     )}
                   </h3>
 
+                  {/* Website Link */}
+                  {entry.company.website ? (
+                    <a
+                      href={formatExternalUrl(entry.company.website)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center justify-center gap-1 truncate max-w-full mt-0.5"
+                      title={formatExternalUrl(entry.company.website)}
+                    >
+                      <Globe className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">
+                        {getDisplayUrl(entry.company.website)}
+                      </span>
+                      <ExternalLink className="w-2 h-2 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-neutral-500 mt-0.5">No website</span>
+                  )}
+
                   {/* Highest Bid Pill */}
                   <div className="w-full my-2.5 py-1.5 px-3 bg-neutral-950/60 rounded-xl border border-neutral-800 flex flex-col items-center justify-center">
                     <span className="text-[9px] uppercase font-bold text-neutral-400">
@@ -221,7 +241,23 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                           {entry.company.name[0]}
                         </div>
                       )}
-                      <span className="font-bold text-white">{entry.company.name}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-white truncate">{entry.company.name}</span>
+                        {entry.company.website && (
+                          <a
+                            href={formatExternalUrl(entry.company.website)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline inline-flex items-center gap-1 truncate"
+                            title={formatExternalUrl(entry.company.website)}
+                          >
+                            <Globe className="w-2.5 h-2.5 shrink-0" />
+                            <span className="truncate">{getDisplayUrl(entry.company.website)}</span>
+                            <ExternalLink className="w-2 h-2 shrink-0" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="py-3.5 px-4 text-center font-mono font-bold text-emerald-400">
